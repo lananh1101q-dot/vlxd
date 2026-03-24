@@ -7,7 +7,7 @@ if (!isset($_SESSION['user'])) {
 require_once __DIR__ . '/db.php';
 
 $sql = "SELECT tk.Makho, k.Tenkho, tk.Masp, sp.Tensp, sp.Dvt, tk.Soluongton
-        FROM Tonkho tk
+        FROM Tonkho_sp tk
         JOIN Kho k ON tk.Makho = k.Makho
         JOIN Sanpham sp ON tk.Masp = sp.Masp
         ORDER BY k.Tenkho, sp.Tensp";

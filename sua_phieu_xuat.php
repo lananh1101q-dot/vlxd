@@ -69,7 +69,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             /* BƯỚC 1: HOÀN TRẢ TỒN KHO CŨ */
             // Vì bảng Phieuxuat không có mã kho, ta hoàn trả vào kho người dùng vừa chọn trên form
-            $stmtHoan = $pdo->prepare("UPDATE Tonkho SET Soluongton = Soluongton + ? WHERE Masp = ? AND Makho = ?");
+            $stmtHoan = $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton + ? WHERE Masp = ? AND Makho = ?");
             foreach ($chiTietPhieuCu as $ct) {
                 $stmtHoan->execute([$ct['Soluong'], $ct['Masp'], $makho_update]);
             }
@@ -81,12 +81,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $tong = 0;
             foreach ($items as $it) { $tong += $it['soluong'] * $it['dongia']; }
 
-            $stmtUpPhieu = $pdo->prepare("UPDATE Phieuxuat SET Makh = ?, Ngayxuat = ?, Tongtienxuat = ?, Ghichu = ? WHERE Maxuathang = ?");
-            $stmtUpPhieu->execute([$makh, $ngayxuat, $tong, $ghichu, $maxuat_get]);
+            $stmtUpPhieu = $pdo->prepare("UPDATE Phieuxuat SET Makh = ?, Makho = ?, Ngayxuat = ?, Tongtienxuat = ?, Ghichu = ? WHERE Maxuathang = ?");
+            $stmtUpPhieu->execute([$makh, $makho_update, $ngayxuat, $tong, $ghichu, $maxuat_get]);
 
             /* BƯỚC 4: THÊM CHI TIẾT MỚI & TRỪ TỒN KHO */
             $stmtIns = $pdo->prepare("INSERT INTO Chitiet_Phieuxuat (Maxuathang, Masp, Soluong, Dongiaxuat) VALUES (?, ?, ?, ?)");
-            $stmtTru = $pdo->prepare("UPDATE Tonkho SET Soluongton = Soluongton - ? WHERE Masp = ? AND Makho = ? AND Soluongton >= ?");
+            $stmtTru = $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton - ? WHERE Masp = ? AND Makho = ? AND Soluongton >= ?");
 
             foreach ($items as $it) {
                 // Thêm chi tiết
@@ -219,7 +219,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     <select name="makho" required class="form-select border-primary">
                         <option value="">-- Chọn kho hàng --</option>
                         <?php foreach ($khos as $k): ?>
-                            <option value="<?= $k['Makho'] ?>"><?= htmlspecialchars($k['Tenkho']) ?></option>
+                            <option value="<?= $k['Makho'] ?>" <?= ($phieuXuat['Makho'] == $k['Makho']) ? 'selected' : '' ?>><?= htmlspecialchars($k['Tenkho']) ?></option>
                         <?php endforeach; ?>
                     </select>
                 </div>
