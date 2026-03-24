@@ -160,6 +160,16 @@ $rows = $pdo->query($sql)->fetchAll();
                   </li>
               </ul>
           </li>
+          <li class="nav-item">
+              <a class="nav-link" href="javascript:void(0)" id="btnDieuChuyen">
+                  <i class="fas fa-exchange-alt"></i> Điều chuyển
+                  <i class="fas fa-chevron-down float-end"></i>
+              </a>
+              <ul class="nav flex-column ms-3 d-none" id="submenuDieuChuyen">
+                  <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php"><i class="fas fa-list"></i> Danh sách phiếu điều chuyển</a></li>
+                  <li class="nav-item"><a class="nav-link" href="phieu_dieuchuyen.php"><i class="fas fa-plus-circle"></i> Tạo phiếu điều chuyển</a></li>
+              </ul>
+          </li>
             <li class="nav-item">
                 <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
                     <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
@@ -271,6 +281,14 @@ const submenuSanXuat = document.getElementById("submenuSanXuat");
 if (btnSanXuat) {
     btnSanXuat.addEventListener("click", function () {
         submenuSanXuat.classList.toggle("d-none");
+    });
+}
+const btnDieuChuyen = document.getElementById("btnDieuChuyen");
+const submenuDieuChuyen = document.getElementById("submenuDieuChuyen");
+
+if (btnDieuChuyen) {
+    btnDieuChuyen.addEventListener("click", function () {
+        submenuDieuChuyen.classList.toggle("d-none");
     });
 }
 </script>
