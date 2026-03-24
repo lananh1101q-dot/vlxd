@@ -449,6 +449,11 @@ document.getElementById("btnSanPham").addEventListener("click", function () {
         document.getElementById("submenuKhachHang").classList.toggle("d-none");
     });
 
+    // SẢN XUẤT
+    document.getElementById("btnSanXuat").addEventListener("click", function () {
+        document.getElementById("submenuSanXuat").classList.toggle("d-none");
+    });
+
 </script>
 </body>
 </html>
