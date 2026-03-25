@@ -1,6 +1,6 @@
 <?php
 // KẾT NỐI DATABASE
-$conn = mysqli_connect("localhost", "root", "", "vlxd");
+$conn = mysqli_connect("localhost", "root", "", "quanlykho");
 
 // XỬ LÝ THÊM DỮ LIỆU
 

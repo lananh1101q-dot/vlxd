@@ -26,14 +26,7 @@ if (!$lenh) {
 }
 
 // Lấy công thức sản phẩm
-$stmtCT = $pdo->prepare("
-    SELECT ct.*, nvl.Tennvl, nvl.Dvt 
-    FROM Congthucsanpham ct 
-    JOIN Nguyenvatlieu nvl ON ct.Manvl = nvl.Manvl 
-    WHERE ct.Masp = ?
-");
-$stmtCT->execute([$lenh['Masp']]);
-$congthuc = $stmtCT->fetchAll();
+$congthuc = $pdo->query("SELECT ct.*, nvl.Tennvl, nvl.Dvt FROM Congthucsanpham ct JOIN Nguyenvatlieu nvl ON ct.Manvl = nvl.Manvl WHERE ct.Masp = '{$lenh['Masp']}'")->fetchAll();
 
 // Lấy danh sách kho
 $khos = $pdo->query("SELECT Makho, Tenkho FROM Kho ORDER BY Tenkho")->fetchAll();
@@ -46,59 +39,49 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors) {
-        // Kiểm tra tồn nguyên vật liệu trong kho chọn trước, để biết nguyên nhân cụ thể nếu thiếu
-        $stmtCheck = $pdo->prepare("SELECT Soluongton FROM Tonkho_nvl WHERE Makho = :makho AND Manvl = :manvl");
-        $stmtTotal = $pdo->prepare("SELECT SUM(Soluongton) FROM Tonkho_nvl WHERE Manvl = :manvl");
-        foreach ($congthuc as $ct) {
-            $soluong_can = $ct['Soluong'] * $lenh['Soluongsanxuat'];
-            $stmtCheck->execute([':makho' => $makho, ':manvl' => $ct['Manvl']]);
-            $tonkho_thuc = $stmtCheck->fetchColumn();
-            $stmtTotal->execute([':manvl' => $ct['Manvl']]);
-            $tong_ton = $stmtTotal->fetchColumn() ?: 0;
-            if ($tonkho_thuc === false || $tonkho_thuc < $soluong_can) {
-                $errors[] = "Không đủ nguyên vật liệu {$ct['Tennvl']} trong kho đã chọn. Cần $soluong_can, kho này có " . ($tonkho_thuc === false ? 0 : $tonkho_thuc) . ", tổng tồn toàn kho: $tong_ton.";
-            }
-        }
-    }
-
-    if (!$errors) {
         try {
             $pdo->beginTransaction();
 
-            // Xuất nguyên vật liệu
+            // 1. Xuất nguyên vật liệu
             foreach ($congthuc as $ct) {
                 $soluong_can = $ct['Soluong'] * $lenh['Soluongsanxuat'];
-                // Giả sử xuất từ kho sản xuất, nhưng để đơn giản, từ kho đã chọn
+                
+                // Đã sửa: Dùng :sl_tru và :sl_dieu_kien thay vì dùng chung :sl
                 $stmtXuat = $pdo->prepare("
                     UPDATE Tonkho_nvl 
-                    SET Soluongton = Soluongton - :sl 
-                    WHERE Makho = :makho AND Manvl = :manvl AND Soluongton >= :sl
+                    SET Soluongton = Soluongton - :sl_tru 
+                    WHERE Makho = :makho AND Manvl = :manvl AND Soluongton >= :sl_dieu_kien
                 ");
                 $stmtXuat->execute([
                     ':makho' => $makho,
                     ':manvl' => $ct['Manvl'],
-                    ':sl' => $soluong_can,
+                    ':sl_tru' => $soluong_can,
+                    ':sl_dieu_kien' => $soluong_can,
                 ]);
+                
                 if ($stmtXuat->rowCount() === 0) {
-                    throw new Exception("Không đủ nguyên vật liệu {$ct['Tennvl']} trong kho.");
+                    throw new Exception("Không đủ nguyên vật liệu {$ct['Tennvl']} trong kho (Cần: " . number_format($soluong_can) . ").");
                 }
 
                 // Ghi chi tiết xuất NVL
                 $pdo->prepare("INSERT INTO Chitiet_XuatNVL_Sanxuat (Malenh, Manvl, Soluong) VALUES (?, ?, ?)")->execute([$malenh, $ct['Manvl'], $soluong_can]);
             }
 
-            // Nhập sản phẩm vào kho
+            // 2. Nhập sản phẩm vào kho
+            // Đã sửa: Dùng :sl_insert và :sl_update thay vì dùng chung :sl
             $stmtNhap = $pdo->prepare("
                 INSERT INTO Tonkho_sp (Makho, Masp, Soluongton) 
-                VALUES (?, ?, ?)
-                ON DUPLICATE KEY UPDATE Soluongton = Soluongton + VALUES(Soluongton)
+                VALUES (:makho, :masp, :sl_insert)
+                ON DUPLICATE KEY UPDATE Soluongton = Soluongton + :sl_update
             ");
             $stmtNhap->execute([
-                $makho,
-                $lenh['Masp'],
-                $lenh['Soluongsanxuat']
+                ':makho' => $makho,
+                ':masp' => $lenh['Masp'],
+                ':sl_insert' => $lenh['Soluongsanxuat'],
+                ':sl_update' => $lenh['Soluongsanxuat'],
             ]);
 
+            // Ghi chi tiết nhập sản phẩm
             $pdo->prepare("INSERT INTO Chitiet_Nhapsanpham_Sanxuat (Malenh, Makho, Masp, Soluong) VALUES (?, ?, ?, ?)")->execute([$malenh, $makho, $lenh['Masp'], $lenh['Soluongsanxuat']]);
 
             // Cập nhật trạng thái lệnh
@@ -120,12 +103,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Hoàn thành lệnh sản xuất</title>
   <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       <style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
         body { 
             background-color: #f8f9fa; 
             font-family: 'Segoe UI', sans-serif; 
+            color: #333;
         }
         
         .sidebar { 
@@ -138,6 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             top: 0;
             left: 0;
             overflow-y: auto;
+            z-index: 1000;
         }
         
         .sidebar .nav-link {
@@ -175,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     </style>
 </head>
 <body>
- <nav class="sidebar">
+<nav class="sidebar">
     <div class="text-center mb-4">
         <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
     </div>
@@ -255,21 +240,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </li>
     </ul>
 </nav>
-
-    <div class="main-content">
+<div class="main-content">
   <div class="max-w-5xl mx-auto p-6 space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold">Hoàn thành lệnh sản xuất</h1>
-        <p class="text-slate-400 text-sm mt-1">Mã lệnh: <?= htmlspecialchars($lenh['Malenh']) ?></p>
+        <h1 class="text-2xl font-bold text-slate-800">Hoàn thành lệnh sản xuất</h1>
+        <p class="text-slate-500 text-sm mt-1">Mã lệnh: <span class="font-semibold text-blue-600"><?= htmlspecialchars($lenh['Malenh']) ?></span></p>
       </div>
       <div class="flex gap-2 text-sm">
-        <a href="danh_sach_lenh_san_xuat.php" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">Quay lại</a>
+        <a href="danh_sach_lenh_san_xuat.php" class="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold shadow-sm transition-colors">Quay lại danh sách</a>
       </div>
     </div>
 
     <?php if ($errors): ?>
-    <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
+    <div class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded shadow-sm">
       <ul class="list-disc list-inside space-y-1">
         <?php foreach ($errors as $er): ?>
           <li><?= htmlspecialchars($er) ?></li>
@@ -279,21 +263,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <?php if ($success): ?>
-    <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
-      <?= htmlspecialchars($success) ?>
+    <div class="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded shadow-sm">
+      <i class="fas fa-check-circle mr-2"></i> <?= htmlspecialchars($success) ?>
     </div>
     <?php endif; ?>
 
-    <div class="bg-slate-800 rounded-lg p-5 space-y-4">
-      <h2 class="text-lg font-semibold">Thông tin lệnh sản xuất</h2>
-      <div class="grid md:grid-cols-2 gap-4">
+    <div class="bg-white rounded-lg p-6 shadow-sm border border-slate-200 space-y-4">
+      <h2 class="text-lg font-semibold text-slate-800 border-b border-slate-100 pb-2">Thông tin lệnh sản xuất</h2>
+      <div class="grid md:grid-cols-2 gap-5">
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Mã lệnh</label>
-          <div class="text-lg font-semibold"><?= htmlspecialchars($lenh['Malenh']) ?></div>
+          <label class="block text-sm font-medium text-slate-500 mb-1">Mã lệnh</label>
+          <div class="text-lg font-semibold text-slate-800"><?= htmlspecialchars($lenh['Malenh']) ?></div>
         </div>
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Sản phẩm</label>
-          <div class="text-lg font-semibold">
+          <label class="block text-sm font-medium text-slate-500 mb-1">Sản phẩm</label>
+          <div class="text-lg font-semibold text-slate-800">
             <?php
             $sp = $pdo->query("SELECT Tensp FROM Sanpham WHERE Masp = '{$lenh['Masp']}'")->fetch();
             echo htmlspecialchars($sp['Tensp'] ?? 'N/A');
@@ -301,48 +285,54 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           </div>
         </div>
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Số lượng</label>
-          <div class="text-lg font-semibold"><?= number_format($lenh['Soluongsanxuat']) ?></div>
+          <label class="block text-sm font-medium text-slate-500 mb-1">Số lượng</label>
+          <div class="text-lg font-semibold text-slate-800"><?= number_format($lenh['Soluongsanxuat']) ?></div>
         </div>
         <div>
-          <label class="block text-sm text-slate-400 mb-1">Trạng thái</label>
-          <div class="text-lg font-semibold"><?= htmlspecialchars($lenh['Trangthai']) ?></div>
+          <label class="block text-sm font-medium text-slate-500 mb-1">Trạng thái</label>
+          <div class="text-lg font-semibold <?= $lenh['Trangthai'] == 'Hoàn thành' ? 'text-green-600' : 'text-orange-500' ?>">
+             <?= htmlspecialchars($lenh['Trangthai']) ?>
+          </div>
         </div>
       </div>
     </div>
 
-    <div class="bg-slate-800 rounded-lg p-5 space-y-4">
-      <h2 class="text-lg font-semibold">Công thức nguyên vật liệu</h2>
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-900 text-slate-300">
-          <tr>
-            <th class="px-4 py-3 text-left">Nguyên vật liệu</th>
-            <th class="px-4 py-3 text-left">ĐVT</th>
-            <th class="px-4 py-3 text-right">Số lượng cần</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($congthuc)): ?>
-            <tr><td colspan="3" class="px-4 py-4 text-center text-slate-400">Chưa có công thức.</td></tr>
-          <?php else: ?>
-            <?php foreach ($congthuc as $ct): ?>
-              <tr class="border-t border-slate-800">
-                <td class="px-4 py-2"><?= htmlspecialchars($ct['Tennvl']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($ct['Dvt']) ?></td>
-                <td class="px-4 py-2 text-right"><?= number_format($ct['Soluong'] * $lenh['Soluongsanxuat']) ?></td>
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
+      <div class="p-5 border-b border-slate-200 bg-white">
+          <h2 class="text-lg font-semibold text-slate-800">Công thức nguyên vật liệu</h2>
+      </div>
+      <div class="overflow-x-auto">
+          <table class="min-w-full text-sm">
+            <thead class="bg-slate-100 text-slate-700 border-b border-slate-200">
+              <tr>
+                <th class="px-5 py-3 text-left font-semibold">Nguyên vật liệu</th>
+                <th class="px-5 py-3 text-left font-semibold">ĐVT</th>
+                <th class="px-5 py-3 text-right font-semibold">Số lượng cần</th>
               </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              <?php if (empty($congthuc)): ?>
+                <tr><td colspan="3" class="px-5 py-8 text-center text-slate-500 italic">Chưa có công thức cho sản phẩm này.</td></tr>
+              <?php else: ?>
+                <?php foreach ($congthuc as $ct): ?>
+                  <tr class="border-b border-slate-100 hover:bg-slate-50 transition-colors">
+                    <td class="px-5 py-3 font-medium text-slate-800"><?= htmlspecialchars($ct['Tennvl']) ?></td>
+                    <td class="px-5 py-3 text-slate-600"><?= htmlspecialchars($ct['Dvt']) ?></td>
+                    <td class="px-5 py-3 text-right font-semibold text-slate-800"><?= number_format($ct['Soluong'] * $lenh['Soluongsanxuat']) ?></td>
+                  </tr>
+                <?php endforeach; ?>
+              <?php endif; ?>
+            </tbody>
+          </table>
+      </div>
     </div>
 
     <?php if ($lenh['Trangthai'] !== 'Hoàn thành'): ?>
-    <form method="post" class="bg-slate-800 rounded-lg p-5 space-y-4">
+    <form method="post" class="bg-white rounded-lg p-6 shadow-sm border border-slate-200 space-y-5">
       <div class="grid md:grid-cols-1 gap-4">
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Chọn kho để thực hiện sản xuất *</label>
-          <select name="makho" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Chọn kho để thực hiện sản xuất <span class="text-red-500">*</span></label>
+          <select name="makho" required class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
             <option value="">-- Chọn kho --</option>
             <?php foreach ($khos as $k): ?>
               <option value="<?= htmlspecialchars($k['Makho']) ?>"
@@ -351,41 +341,50 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
               </option>
             <?php endforeach; ?>
           </select>
+          <p class="text-xs text-slate-500 mt-2"><i class="fas fa-info-circle"></i> Hệ thống sẽ tự động trừ nguyên vật liệu và cộng thành phẩm vào kho bạn chọn.</p>
         </div>
       </div>
 
-      <div class="pt-2">
-        <button type="submit" class="px-6 py-2 rounded bg-green-600 hover:bg-green-700 text-white font-semibold">
-          Hoàn thành sản xuất
+      <div class="pt-2 border-t border-slate-100 mt-4 pt-4">
+        <button type="submit" class="px-6 py-2.5 rounded bg-green-600 hover:bg-green-700 text-white font-semibold shadow-md transition-colors">
+          <i class="fas fa-check-circle mr-2"></i> Xác nhận Hoàn thành sản xuất
         </button>
       </div>
     </form>
     <?php endif; ?>
   </div>
-  <script>
-document.getElementById("btnSanPham").addEventListener("click", function () {
-        document.getElementById("submenuSanPham").classList.toggle("d-none");
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const menuConfig = {
+        "btnSanPham": "submenuSanPham",
+        "btnPhieuNhap": "submenuPhieuNhap",
+        "btnPhieuXuat": "submenuPhieuXuat",
+        "btnSanXuat": "submenuSanXuat",
+        "btnBaoCao": "submenuBaoCao",
+        "btnKhachHang": "submenuKhachHang"
+    };
+
+    Object.keys(menuConfig).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(menuConfig[btnId]);
+        if(btn && sub) {
+            btn.addEventListener("click", function() {
+                sub.classList.toggle("d-none");
+            });
+        }
     });
 
-    document.getElementById("btnPhieuNhap").addEventListener("click", function () {
-        document.getElementById("submenuPhieuNhap").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnPhieuXuat").addEventListener("click", function () {
-        document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnSanXuat").addEventListener("click", function () {
-        document.getElementById("submenuSanXuat").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnBaoCao").addEventListener("click", function () {
-        document.getElementById("submenuBaoCao").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnKhachHang").addEventListener("click", function () {
-        document.getElementById("submenuKhachHang").classList.toggle("d-none");
-    });
+    // Tự động mở menu Sản xuất
+    const path = window.location.pathname;
+    if (path.includes("san_xuat")) {
+        const submenuSanXuat = document.getElementById("submenuSanXuat");
+        if(submenuSanXuat) {
+            submenuSanXuat.classList.remove("d-none");
+        }
+    }
+});
 </script>
 </body>
 </html>

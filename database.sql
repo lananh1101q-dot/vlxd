@@ -5,8 +5,8 @@
 -- -> Xuất bán cho đại lý/khách hàng -> Thanh toán
 -- =========================================================
 
-CREATE DATABASE IF NOT EXISTS vlxd;
-USE vlxd;
+CREATE DATABASE IF NOT EXISTS quanlykho;
+USE quanlykho;
 
 -- =========================================================
 -- 1. BẢNG DANH MỤC CƠ BẢN

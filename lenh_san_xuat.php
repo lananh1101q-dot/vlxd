@@ -42,9 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             $pdo->commit();
             $success = 'Tạo lệnh sản xuất thành công.';
+            
+            // Xóa dữ liệu post sau khi thành công để trống form
+            unset($_POST);
         } catch (Exception $e) {
             $pdo->rollBack();
-            $errors[] = 'Lỗi khi lưu lệnh: ' . htmlspecialchars($e->getMessage());
+            $errors[] = 'Lỗi khi lưu lệnh: (Có thể mã lệnh đã tồn tại) ' . htmlspecialchars($e->getMessage());
         }
     }
 }
@@ -54,14 +57,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Lệnh sản xuất</title>
+  <title>Tạo Lệnh Sản Xuất</title>
   <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       <style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
         body { 
             background-color: #f8f9fa; 
             font-family: 'Segoe UI', sans-serif; 
+            color: #333; 
         }
         
         /* Sidebar */
@@ -75,6 +79,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             top: 0;
             left: 0;
             overflow-y: auto;
+            z-index: 1000;
         }
         
         .sidebar .nav-link {
@@ -83,27 +88,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             border-radius: 5px;
             margin: 4px 10px;
             transition: all 0.3s ease;
-            font-weight: normal; /* Chữ bình thường mặc định */
-        }
-        
-        /* CHỈ hover mới in đậm và nổi bật */
-        .sidebar .nav-link:hover {
-            background-color: #0069d9;    /* Nền xanh đậm hơn một chút */
-            font-weight: bold;            /* Chữ in đậm */
-            transform: translateX(8px);   /* Dịch nhẹ sang phải cho đẹp */
-        }
-        
-        /* Bỏ hoàn toàn style active - tất cả đều giống nhau */
-        .sidebar .nav-link.active {
-            background-color: transparent;
             font-weight: normal;
-            transform: none;
+        }
+        
+        .sidebar .nav-link:hover {
+            background-color: #0069d9;
+            font-weight: bold;
+            transform: translateX(8px);
         }
         
         .main-content { 
             margin-left: 250px; 
             padding: 20px; 
         }
+
         @media (max-width: 768px) { 
             .sidebar { 
                 width: 100%; 
@@ -114,17 +112,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 margin-left: 0; 
             } 
         }
-         /* tránh ghi đè */
         .d-none {
             display: none !important;
-        }
-        #submenuSanPham {
-            transition: all 0.3s ease;
         }
     </style>
 </head>
 <body>
- <nav class="sidebar">
+<nav class="sidebar">
     <div class="text-center mb-4">
         <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
     </div>
@@ -158,7 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                <i class="fas fa-file-export"></i> Phiếu xuất <!-- Đã sửa icon đúng -->
+                <i class="fas fa-file-export"></i> Phiếu xuất
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
@@ -168,18 +162,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </li>
 
         <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
+                <i class="fas fa-cogs"></i> Sản xuất
+                <i class="fas fa-chevron-down float-end"></i>
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
+                <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
+                <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
+            </ul>
+        </li>
+
+        <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
                 <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao"> <!-- ĐÃ SỬA: thêm ul đúng id -->
+            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
                 <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
             </ul>
         </li>
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
-                <i class="fas fa-users"></i> Quản lý khách hàng <!-- Đã sửa icon đúng -->
+                <i class="fas fa-users"></i> Quản lý khách hàng
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
@@ -193,21 +198,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         </li>
     </ul>
 </nav>
-
-    <div class="main-content">
+<div class="main-content">
   <div class="max-w-5xl mx-auto p-6 space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold">Tạo lệnh sản xuất</h1>
-        <p class="text-slate-400 text-sm mt-1">Tạo lệnh sản xuất mới</p>
+        <h1 class="text-2xl font-bold text-slate-800">Tạo lệnh sản xuất</h1>
+        <p class="text-slate-500 text-sm mt-1">Lập kế hoạch và thêm lệnh sản xuất mới vào hệ thống</p>
       </div>
       <div class="flex gap-2 text-sm">
-        <a href="danh_sach_lenh_san_xuat.php" class="px-3 py-2 rounded bg-white-800 hover:bg-white-700"></a>
+        <a href="danh_sach_lenh_san_xuat.php" class="px-4 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold shadow-sm transition-colors">Quay lại danh sách</a>
       </div>
     </div>
 
     <?php if ($errors): ?>
-    <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
+    <div class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded shadow-sm">
       <ul class="list-disc list-inside space-y-1">
         <?php foreach ($errors as $er): ?>
           <li><?= htmlspecialchars($er) ?></li>
@@ -217,20 +221,24 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     <?php endif; ?>
 
     <?php if ($success): ?>
-    <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
-      <?= htmlspecialchars($success) ?>
+    <div class="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded shadow-sm">
+      <i class="fas fa-check-circle mr-2"></i> <?= htmlspecialchars($success) ?>
     </div>
     <?php endif; ?>
 
-    <form method="post" class="bg-slate-800 rounded-lg p-5 space-y-4">
-      <div class="grid md:grid-cols-2 gap-4">
+    <form method="post" class="bg-white rounded-lg p-6 space-y-5 shadow-sm border border-slate-200">
+      <div class="grid md:grid-cols-2 gap-5">
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Mã lệnh sản xuất *</label>
-          <input name="malenh" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['malenh'] ?? '') ?>" />
+          <label class="block text-sm font-medium text-slate-700 mb-2">Mã lệnh sản xuất <span class="text-red-500">*</span></label>
+          <input name="malenh" required 
+                 class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                 value="<?= htmlspecialchars($_POST['malenh'] ?? '') ?>" 
+                 placeholder="VD: LSX001" />
         </div>
+        
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Sản phẩm *</label>
-          <select name="masp" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Sản phẩm <span class="text-red-500">*</span></label>
+          <select name="masp" required class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
             <option value="">-- Chọn sản phẩm --</option>
             <?php foreach ($sanphams as $sp): ?>
               <option value="<?= htmlspecialchars($sp['Masp']) ?>"
@@ -240,56 +248,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <?php endforeach; ?>
           </select>
         </div>
+
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Ngày sản xuất *</label>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Ngày sản xuất <span class="text-red-500">*</span></label>
           <input type="date" name="ngaysanxuat" required
-            class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"
+            class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
              value="<?= htmlspecialchars($_POST['ngaysanxuat'] ?? date('Y-m-d')) ?>" />
         </div>
+
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Số lượng sản xuất *</label>
+          <label class="block text-sm font-medium text-slate-700 mb-2">Số lượng sản xuất <span class="text-red-500">*</span></label>
           <input type="number" name="soluongsanxuat" required min="1"
-            class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"
-             value="<?= htmlspecialchars($_POST['soluongsanxuat'] ?? '') ?>" />
+            class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+             value="<?= htmlspecialchars($_POST['soluongsanxuat'] ?? '') ?>" placeholder="Nhập số lượng..." />
         </div>
       </div>
 
       <div>
-        <label class="block text-sm text-slate-300 mb-2">Ghi chú</label>
-        <textarea name="ghichu" rows="3" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"><?= htmlspecialchars($_POST['ghichu'] ?? '') ?></textarea>
+        <label class="block text-sm font-medium text-slate-700 mb-2">Ghi chú thêm</label>
+        <textarea name="ghichu" rows="3" 
+                  class="w-full px-4 py-2.5 rounded bg-white border border-slate-300 text-slate-800 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500" 
+                  placeholder="Nhập mô tả hoặc ghi chú..."><?= htmlspecialchars($_POST['ghichu'] ?? '') ?></textarea>
       </div>
 
-      <div class="pt-2">
-        <button type="submit" class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-          Tạo lệnh sản xuất
+      <div class="pt-4 border-t border-slate-100">
+        <button type="submit" class="px-8 py-2.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md transition-colors">
+          <i class="fas fa-save mr-2"></i> Lưu Lệnh Sản Xuất
         </button>
       </div>
     </form>
   </div>
-  <script>
-document.getElementById("btnSanPham").addEventListener("click", function () {
-        document.getElementById("submenuSanPham").classList.toggle("d-none");
+</div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const menuConfig = {
+        "btnSanPham": "submenuSanPham",
+        "btnPhieuNhap": "submenuPhieuNhap",
+        "btnPhieuXuat": "submenuPhieuXuat",
+        "btnSanXuat": "submenuSanXuat",
+        "btnBaoCao": "submenuBaoCao",
+        "btnKhachHang": "submenuKhachHang"
+    };
+
+    Object.keys(menuConfig).forEach(btnId => {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(menuConfig[btnId]);
+        if(btn && sub) {
+            btn.addEventListener("click", function() {
+                sub.classList.toggle("d-none");
+            });
+        }
     });
 
-    // Phiếu nhập kho
-    document.getElementById("btnPhieuNhap").addEventListener("click", function () {
-        document.getElementById("submenuPhieuNhap").classList.toggle("d-none");
-    });
-
-    // Phiếu xuất
-    document.getElementById("btnPhieuXuat").addEventListener("click", function () {
-        document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
-    });
-
-    // Báo cáo & Thống kê (giờ hoạt động)
-    document.getElementById("btnBaoCao").addEventListener("click", function () {
-        document.getElementById("submenuBaoCao").classList.toggle("d-none");
-    });
-
-    // QUẢN LÝ KHÁCH HÀNG (đã thêm đầy đủ toggle)
-    document.getElementById("btnKhachHang").addEventListener("click", function () {
-        document.getElementById("submenuKhachHang").classList.toggle("d-none");
-    });
+    const path = window.location.pathname;
+    if (path.includes("lenh_san_xuat.php") || path.includes("danh_sach_lenh_san_xuat.php")) {
+        const submenuSanXuat = document.getElementById("submenuSanXuat");
+        if(submenuSanXuat) {
+            submenuSanXuat.classList.remove("d-none");
+        }
+    }
+});
 </script>
 </body>
 </html>

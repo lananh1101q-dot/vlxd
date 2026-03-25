@@ -1,5 +1,5 @@
 <?php
-$conn = mysqli_connect("localhost", "root", "", "vlxd");
+$conn = mysqli_connect("localhost", "root", "", "quanlykho");
 if (!$conn) die("Lỗi kết nối: " . mysqli_connect_error());
 
 if (isset($_GET['Mancc'])) {

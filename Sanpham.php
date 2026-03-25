@@ -1,6 +1,6 @@
 
     <?php
-$conn = mysqli_connect("localhost", "root", "", "vlxd");
+$conn = mysqli_connect("localhost", "root", "", "quanlykho");
 require_once 'Classes/PHPExcel.php';  // đường dẫn tới thư viện
 require_once 'Classes/PHPExcel/IOFactory.php';
 

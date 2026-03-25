@@ -12,13 +12,6 @@ $sql = "SELECT tk.Makho, k.Tenkho, tk.Masp, sp.Tensp, sp.Dvt, tk.Soluongton
         JOIN Sanpham sp ON tk.Masp = sp.Masp
         ORDER BY k.Tenkho, sp.Tensp";
 $rows = $pdo->query($sql)->fetchAll();
-
-$sql_nvl = "SELECT tk.Makho, k.Tenkho, tk.Manvl, nvl.Tennvl, nvl.Dvt, tk.Soluongton
-        FROM Tonkho_nvl tk
-        JOIN Kho k ON tk.Makho = k.Makho
-        JOIN Nguyenvatlieu nvl ON tk.Manvl = nvl.Manvl
-        ORDER BY k.Tenkho, nvl.Tennvl";
-$rows_nvl = $pdo->query($sql_nvl)->fetchAll();
 ?>
 <!doctype html>
 <html lang="vi">
@@ -186,20 +179,10 @@ $rows_nvl = $pdo->query($sql_nvl)->fetchAll();
             
                     <li class="nav-item">
                         <a class="nav-link" href="tonkho.php">
-                            <i class="fas fa-warehouse"></i> Báo cáo tồn kho tổng
+                            <i class="fas fa-warehouse"></i> Báo cáo tồn kho
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho_sp.php">
-                            <i class="fas fa-cubes"></i> Tồn kho thành phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho_nvl.php">
-                            <i class="fas fa-boxes-stacked"></i> Tồn kho nguyên vật liệu
-                        </a>
-                    </li>
-                
+                  
                 </ul>
             </li>
 
@@ -257,46 +240,6 @@ $rows_nvl = $pdo->query($sql_nvl)->fetchAll();
                 <td class="px-4 py-2">[<?= htmlspecialchars($r['Makho']) ?>] <?= htmlspecialchars($r['Tenkho']) ?></td>
                 <td class="px-4 py-2"><?= htmlspecialchars($r['Masp']) ?></td>
                 <td class="px-4 py-2"><?= htmlspecialchars($r['Tensp']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Dvt']) ?></td>
-                <td class="px-4 py-2 text-right font-semibold"><?= number_format($r['Soluongton']) ?></td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  </div>
-
-  <div class="main-content">
-  <div class="max-w-6xl mx-auto p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold">Báo cáo tồn kho nguyên vật liệu</h1>
-        <p class="text-slate-400 text-sm mt-1">Danh sách tồn nguyên vật liệu theo kho</p>
-      </div>
-    </div>
-
-    <div class="flex items-center justify-between">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-900 text-slate-300">
-          <tr>
-            <th class="px-4 py-3 text-left">Kho</th>
-            <th class="px-4 py-3 text-left">Mã NVL</th>
-            <th class="px-4 py-3 text-left">Tên NVL</th>
-            <th class="px-4 py-3 text-left">ĐVT</th>
-            <th class="px-4 py-3 text-right">Số lượng tồn</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($rows_nvl)): ?>
-            <tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">Chưa có dữ liệu tồn nguyên vật liệu.</td></tr>
-          <?php else: ?>
-            <?php foreach ($rows_nvl as $r): ?>
-              <tr class="border-t border-slate-800">
-                <td class="px-4 py-2">[<?= htmlspecialchars($r['Makho']) ?>] <?= htmlspecialchars($r['Tenkho']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Manvl']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Tennvl']) ?></td>
                 <td class="px-4 py-2"><?= htmlspecialchars($r['Dvt']) ?></td>
                 <td class="px-4 py-2 text-right font-semibold"><?= number_format($r['Soluongton']) ?></td>
               </tr>

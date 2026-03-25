@@ -48,6 +48,8 @@ LEFT JOIN Sanpham sp ON l.Masp = sp.Masp
 WHERE 1=1
 ";
 
+$params = [];
+
 // Tìm theo mã lệnh
 if ($maSearch !== '') {
     $sql .= " AND l.Malenh LIKE :ma";
@@ -74,7 +76,7 @@ if ($dateTo !== '') {
 $sql .= " ORDER BY l.Ngaysanxuat DESC, l.Malenh DESC";
 
 $stmt = $pdo->prepare($sql);
-$stmt->execute($params ?? []);
+$stmt->execute($params);
 $lenhs = $stmt->fetchAll();
 
 $success = $_GET['success'] ?? '';
@@ -87,12 +89,13 @@ $error = $_GET['error'] ?? '';
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Danh sách lệnh sản xuất</title>
   <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       <style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
         body { 
             background-color: #f8f9fa; 
             font-family: 'Segoe UI', sans-serif; 
+            color: #333;
         }
         
         /* Sidebar */
@@ -106,6 +109,7 @@ $error = $_GET['error'] ?? '';
             top: 0;
             left: 0;
             overflow-y: auto;
+            z-index: 1000;
         }
         
         .sidebar .nav-link {
@@ -224,40 +228,39 @@ $error = $_GET['error'] ?? '';
     </ul>
 </nav>
 
-    <div class="main-content">
+<div class="main-content">
   <div class="max-w-7xl mx-auto p-6 space-y-6">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-2xl font-bold">Danh sách lệnh sản xuất</h1>
-        <p class="text-slate-400 text-sm mt-1">Quản lý các lệnh sản xuất</p>
+        <h1 class="text-2xl font-bold text-slate-800">Danh sách lệnh sản xuất</h1>
+        <p class="text-slate-500 text-sm mt-1">Quản lý và theo dõi tiến độ các lệnh sản xuất</p>
       </div>
       <div class="flex gap-2 text-sm">
-        <a href="lenh_san_xuat.php" class="px-3 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold">Tạo lệnh mới</a>
+        <a href="lenh_san_xuat.php" class="px-4 py-2.5 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold shadow-md"><i class="fas fa-plus mr-2"></i> Tạo lệnh mới</a>
       </div>
     </div>
 
     <?php if ($success): ?>
-    <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
+    <div class="bg-green-100 border border-green-300 text-green-700 px-4 py-3 rounded">
       Xóa lệnh sản xuất thành công.
     </div>
     <?php endif; ?>
 
     <?php if ($error): ?>
-    <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
+    <div class="bg-red-100 border border-red-300 text-red-700 px-4 py-3 rounded">
       <?= htmlspecialchars($error) ?>
     </div>
     <?php endif; ?>
 
-    <!-- Bộ lọc -->
-    <form method="GET" class="bg-slate-800 rounded-lg p-5 space-y-4">
+    <form method="GET" class="bg-white rounded-lg p-5 shadow-sm border border-slate-200 space-y-4">
       <div class="grid md:grid-cols-4 gap-4">
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Mã lệnh</label>
-          <input name="ma" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($maSearch) ?>" />
+          <label class="block text-sm font-medium text-slate-700 mb-2">Mã lệnh</label>
+          <input name="ma" class="w-full px-3 py-2 rounded bg-white border border-slate-300 text-slate-800" value="<?= htmlspecialchars($maSearch) ?>" placeholder="Tìm mã..." />
         </div>
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Sản phẩm</label>
-          <select name="masp" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+          <label class="block text-sm font-medium text-slate-700 mb-2">Sản phẩm</label>
+          <select name="masp" class="w-full px-3 py-2 rounded bg-white border border-slate-300 text-slate-800">
             <option value="">-- Tất cả --</option>
             <?php foreach ($sanphams as $sp): ?>
               <option value="<?= htmlspecialchars($sp['Masp']) ?>" <?= ($spSearch === $sp['Masp']) ? 'selected' : '' ?>>
@@ -267,50 +270,58 @@ $error = $_GET['error'] ?? '';
           </select>
         </div>
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Từ ngày</label>
-          <input type="date" name="from" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($dateFrom) ?>" />
+          <label class="block text-sm font-medium text-slate-700 mb-2">Từ ngày</label>
+          <input type="date" name="from" class="w-full px-3 py-2 rounded bg-white border border-slate-300 text-slate-800" value="<?= htmlspecialchars($dateFrom) ?>" />
         </div>
         <div>
-          <label class="block text-sm text-slate-300 mb-2">Đến ngày</label>
-          <input type="date" name="to" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($dateTo) ?>" />
+          <label class="block text-sm font-medium text-slate-700 mb-2">Đến ngày</label>
+          <input type="date" name="to" class="w-full px-3 py-2 rounded bg-white border border-slate-300 text-slate-800" value="<?= htmlspecialchars($dateTo) ?>" />
         </div>
       </div>
       <div class="pt-2">
-        <button type="submit" class="px-6 py-2 rounded bg-blue-600 hover:bg-blue-700 text-white font-semibold">
-          Tìm kiếm
+        <button type="submit" class="px-6 py-2 rounded bg-slate-800 hover:bg-slate-900 text-white font-semibold shadow transition">
+          <i class="fas fa-search mr-2"></i> Lọc dữ liệu
         </button>
+        <a href="danh_sach_lenh_san_xuat.php" class="ml-2 px-6 py-2 rounded bg-slate-200 hover:bg-slate-300 text-slate-700 font-semibold transition">Xóa bộ lọc</a>
       </div>
     </form>
 
-    <div class="bg-white-800 rounded-lg border border-slate-700 overflow-auto">
+    <div class="bg-white rounded-lg shadow-sm border border-slate-200 overflow-hidden">
       <table class="min-w-full text-sm">
-        <thead class="bg-slate-900 text-slate-300">
+        <thead class="bg-slate-100 text-slate-700">
           <tr>
-            <th class="px-4 py-3 text-left">Mã lệnh</th>
-            <th class="px-4 py-3 text-left">Sản phẩm</th>
-            <th class="px-4 py-3 text-left">Ngày sản xuất</th>
-            <th class="px-4 py-3 text-right">Số lượng</th>
-            <th class="px-4 py-3 text-left">Trạng thái</th>
-            <th class="px-4 py-3 text-left">Ghi chú</th>
-            <th class="px-4 py-3 text-center">Thao tác</th>
+            <th class="px-4 py-3 text-left font-semibold">Mã lệnh</th>
+            <th class="px-4 py-3 text-left font-semibold">Sản phẩm</th>
+            <th class="px-4 py-3 text-left font-semibold">Ngày sản xuất</th>
+            <th class="px-4 py-3 text-right font-semibold">Số lượng</th>
+            <th class="px-4 py-3 text-left font-semibold">Trạng thái</th>
+            <th class="px-4 py-3 text-left font-semibold">Ghi chú</th>
+            <th class="px-4 py-3 text-center font-semibold">Thao tác</th>
           </tr>
         </thead>
         <tbody>
           <?php if (empty($lenhs)): ?>
-            <tr><td colspan="7" class="px-4 py-4 text-center text-slate-400">Chưa có lệnh sản xuất nào.</td></tr>
+            <tr><td colspan="7" class="px-4 py-6 text-center text-slate-500">Chưa có lệnh sản xuất nào.</td></tr>
           <?php else: ?>
             <?php foreach ($lenhs as $l): ?>
-              <tr class="border-t border-slate-800 hover:bg-slate-700/50">
-                <td class="px-4 py-2 font-semibold"><?= htmlspecialchars($l['Malenh']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($l['Tensp'] ?? 'N/A') ?></td>
-                <td class="px-4 py-2"><?= date('d/m/Y', strtotime($l['Ngaysanxuat'])) ?></td>
-                <td class="px-4 py-2 text-right"><?= number_format($l['Soluongsanxuat']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($l['Trangthai']) ?></td>
-                <td class="px-4 py-2 text-slate-400"><?= htmlspecialchars(mb_substr($l['Ghichu'] ?? '', 0, 50)) ?><?= mb_strlen($l['Ghichu'] ?? '') > 50 ? '...' : '' ?></td>
-                <td class="px-4 py-2">
+              <tr class="border-t border-slate-200 hover:bg-slate-50 transition">
+                <td class="px-4 py-3 font-semibold text-blue-600"><?= htmlspecialchars($l['Malenh']) ?></td>
+                <td class="px-4 py-3 text-slate-800"><?= htmlspecialchars($l['Tensp'] ?? 'N/A') ?></td>
+                <td class="px-4 py-3 text-slate-600"><?= date('d/m/Y', strtotime($l['Ngaysanxuat'])) ?></td>
+                <td class="px-4 py-3 text-right font-medium text-slate-800"><?= number_format($l['Soluongsanxuat']) ?></td>
+                <td class="px-4 py-3">
+                    <?php if($l['Trangthai'] == 'Hoàn thành'): ?>
+                        <span class="px-2 py-1 rounded bg-green-100 text-green-700 text-xs font-bold border border-green-200">Hoàn thành</span>
+                    <?php else: ?>
+                        <span class="px-2 py-1 rounded bg-orange-100 text-orange-700 text-xs font-bold border border-orange-200">Đang sản xuất</span>
+                    <?php endif; ?>
+                </td>
+                <td class="px-4 py-3 text-slate-500 italic"><?= htmlspecialchars(mb_substr($l['Ghichu'] ?? '', 0, 40)) ?><?= mb_strlen($l['Ghichu'] ?? '') > 40 ? '...' : '' ?></td>
+                <td class="px-4 py-3">
                   <div class="flex items-center justify-center gap-2">
-                    <a href="hoan_thanh_san_xuat.php?id=<?= urlencode($l['Malenh']) ?>" class="px-3 py-1 rounded bg-green-600 hover:bg-green-700 text-xs font-semibold">Hoàn thành</a>
-                    <a href="danh_sach_lenh_san_xuat.php?xoa=<?= urlencode($l['Malenh']) ?>" onclick="return confirm('Xóa lệnh sản xuất này?')" class="px-3 py-1 rounded bg-red-600 hover:bg-red-700 text-xs font-semibold">Xóa</a>
+                    <a title="Hoàn thành lệnh" href="hoan_thanh_san_xuat.php?id=<?= urlencode($l['Malenh']) ?>" class="w-8 h-8 flex items-center justify-center rounded bg-green-500 hover:bg-green-600 text-white shadow"><i class="fas fa-check"></i></a>
+                    <a title="Sửa lệnh" href="sua_lenh_san_xuat.php?id=<?= urlencode($l['Malenh']) ?>" class="w-8 h-8 flex items-center justify-center rounded bg-blue-500 hover:bg-blue-600 text-white shadow"><i class="fas fa-edit"></i></a>
+                    <a title="Xóa lệnh" href="danh_sach_lenh_san_xuat.php?xoa=<?= urlencode($l['Malenh']) ?>" onclick="return confirm('Bạn có chắc muốn xóa lệnh sản xuất này? Mọi dữ liệu liên quan sẽ bị mất.')" class="w-8 h-8 flex items-center justify-center rounded bg-red-500 hover:bg-red-600 text-white shadow"><i class="fas fa-trash"></i></a>
                   </div>
                 </td>
               </tr>
@@ -320,30 +331,16 @@ $error = $_GET['error'] ?? '';
       </table>
     </div>
   </div>
-  <script>
-document.getElementById("btnSanPham").addEventListener("click", function () {
-        document.getElementById("submenuSanPham").classList.toggle("d-none");
+</div>
+<script>
+    const menus = ["SanPham", "PhieuNhap", "PhieuXuat", "SanXuat", "BaoCao", "KhachHang"];
+    menus.forEach(menu => {
+        document.getElementById(`btn${menu}`)?.addEventListener("click", function () {
+            document.getElementById(`submenu${menu}`).classList.toggle("d-none");
+        });
     });
-
-    document.getElementById("btnPhieuNhap").addEventListener("click", function () {
-        document.getElementById("submenuPhieuNhap").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnPhieuXuat").addEventListener("click", function () {
-        document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnSanXuat").addEventListener("click", function () {
-        document.getElementById("submenuSanXuat").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnBaoCao").addEventListener("click", function () {
-        document.getElementById("submenuBaoCao").classList.toggle("d-none");
-    });
-
-    document.getElementById("btnKhachHang").addEventListener("click", function () {
-        document.getElementById("submenuKhachHang").classList.toggle("d-none");
-    });
+    // Tự động mở menu Sản xuất
+    document.getElementById("submenuSanXuat")?.classList.remove("d-none");
 </script>
 </body>
 </html>
