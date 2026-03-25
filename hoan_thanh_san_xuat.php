@@ -26,7 +26,14 @@ if (!$lenh) {
 }
 
 // Lấy công thức sản phẩm
-$congthuc = $pdo->query("SELECT ct.*, nvl.Tennvl, nvl.Dvt FROM Congthucsanpham ct JOIN Nguyenvatlieu nvl ON ct.Manvl = nvl.Manvl WHERE ct.Masp = '{$lenh['Masp']}'")->fetchAll();
+$stmtCT = $pdo->prepare("
+    SELECT ct.*, nvl.Tennvl, nvl.Dvt 
+    FROM Congthucsanpham ct 
+    JOIN Nguyenvatlieu nvl ON ct.Manvl = nvl.Manvl 
+    WHERE ct.Masp = ?
+");
+$stmtCT->execute([$lenh['Masp']]);
+$congthuc = $stmtCT->fetchAll();
 
 // Lấy danh sách kho
 $khos = $pdo->query("SELECT Makho, Tenkho FROM Kho ORDER BY Tenkho")->fetchAll();
@@ -36,6 +43,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($makho === '') {
         $errors[] = 'Vui lòng chọn kho.';
+    }
+
+    if (!$errors) {
+        // Kiểm tra tồn nguyên vật liệu trong kho chọn trước, để biết nguyên nhân cụ thể nếu thiếu
+        $stmtCheck = $pdo->prepare("SELECT Soluongton FROM Tonkho_nvl WHERE Makho = :makho AND Manvl = :manvl");
+        $stmtTotal = $pdo->prepare("SELECT SUM(Soluongton) FROM Tonkho_nvl WHERE Manvl = :manvl");
+        foreach ($congthuc as $ct) {
+            $soluong_can = $ct['Soluong'] * $lenh['Soluongsanxuat'];
+            $stmtCheck->execute([':makho' => $makho, ':manvl' => $ct['Manvl']]);
+            $tonkho_thuc = $stmtCheck->fetchColumn();
+            $stmtTotal->execute([':manvl' => $ct['Manvl']]);
+            $tong_ton = $stmtTotal->fetchColumn() ?: 0;
+            if ($tonkho_thuc === false || $tonkho_thuc < $soluong_can) {
+                $errors[] = "Không đủ nguyên vật liệu {$ct['Tennvl']} trong kho đã chọn. Cần $soluong_can, kho này có " . ($tonkho_thuc === false ? 0 : $tonkho_thuc) . ", tổng tồn toàn kho: $tong_ton.";
+            }
+        }
     }
 
     if (!$errors) {
@@ -67,16 +90,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             // Nhập sản phẩm vào kho
             $stmtNhap = $pdo->prepare("
                 INSERT INTO Tonkho_sp (Makho, Masp, Soluongton) 
-                VALUES (:makho, :masp, :sl)
-                ON DUPLICATE KEY UPDATE Soluongton = Soluongton + :sl
+                VALUES (?, ?, ?)
+                ON DUPLICATE KEY UPDATE Soluongton = Soluongton + VALUES(Soluongton)
             ");
             $stmtNhap->execute([
-                ':makho' => $makho,
-                ':masp' => $lenh['Masp'],
-                ':sl' => $lenh['Soluongsanxuat'],
+                $makho,
+                $lenh['Masp'],
+                $lenh['Soluongsanxuat']
             ]);
 
-            // Ghi chi tiết nhập sản phẩm
             $pdo->prepare("INSERT INTO Chitiet_Nhapsanpham_Sanxuat (Malenh, Makho, Masp, Soluong) VALUES (?, ?, ?, ?)")->execute([$malenh, $makho, $lenh['Masp'], $lenh['Soluongsanxuat']]);
 
             // Cập nhật trạng thái lệnh

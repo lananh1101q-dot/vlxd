@@ -80,14 +80,13 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 // Cập nhật tồn kho: INSERT ... ON DUPLICATE KEY UPDATE
                 $stmtTonkho = $pdo->prepare("
                     INSERT INTO Tonkho_nvl (Makho, Manvl, Soluongton) 
-                    VALUES (:makho, :manvl, :sl)
-                    ON DUPLICATE KEY UPDATE Soluongton = Soluongton + :sl_update
+                    VALUES (?, ?, ?)
+                    ON DUPLICATE KEY UPDATE Soluongton = Soluongton + VALUES(Soluongton)
                 ");
                 $stmtTonkho->execute([
-                    ':makho' => $makho,
-                    ':manvl' => $it['masp'],
-                    ':sl' => $it['soluong'],
-                    ':sl_update' => $it['soluong'],
+                    $makho,
+                    $it['masp'],
+                    $it['soluong']
                 ]);
             }
 

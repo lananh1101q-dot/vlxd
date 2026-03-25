@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 
     if (empty($items)) {
-        $errors[] = 'Cần ít nhất một dòng chi tiết sản phẩm hợp lệ.';
+        $errors[] = 'kho không đủ hàng.';
     }
 
 

@@ -2,7 +2,7 @@
 // ===============================
 // KẾT NỐI DATABASE
 // ===============================
-$conn = mysqli_connect("localhost", "root", "", "quanlykho");
+$conn = mysqli_connect("localhost", "root", "", "vlxd");
 mysqli_set_charset($conn, "utf8");
 
 if (!$conn) {
