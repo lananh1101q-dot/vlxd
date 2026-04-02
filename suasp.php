@@ -1,5 +1,5 @@
 <?php
-$conn = mysqli_connect("localhost", "root", "", "quanlykho");
+$conn = mysqli_connect("localhost", "root", "", "vlxd");
 $sql_danhmuc = "SELECT Madm, Tendm FROM Danhmucsp ORDER BY Tendm ASC";
 $result_danhmuc = mysqli_query($conn, $sql_danhmuc); // Lấy danh mục để hiển thị trong dropdown
 

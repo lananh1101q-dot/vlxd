@@ -1,0 +1,11 @@
+CREATE DATABASE IF NOT EXISTS vlxd_user;
+USE vlxd_user;
+
+CREATE TABLE Nguoidung (
+    Manv VARCHAR(50) PRIMARY KEY,
+    Tendangnhap VARCHAR(100) NOT NULL UNIQUE,
+    Matkhau VARCHAR(255) NOT NULL,
+    Hovaten VARCHAR(255),
+    Email VARCHAR(100),
+    Vaitro VARCHAR(50) NOT NULL
+) ENGINE=InnoDB;

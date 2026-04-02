@@ -1,63 +1,4 @@
-<?php
-// ===============================
-// KẾT NỐI DATABASE
-// ===============================
-$conn = mysqli_connect("localhost", "root", "", "vlxd");
-mysqli_set_charset($conn, "utf8");
 
-if (!$conn) {
-    die("Lỗi kết nối CSDL: " . mysqli_connect_error());
-}
-
-// ===============================
-// LẤY DANH MỤC
-// ===============================
-$sql_danhmuc = "SELECT Madm, Tendm FROM danhmucsp ORDER BY Tendm ASC";
-$result_danhmuc = mysqli_query($conn, $sql_danhmuc);
-
-// ===============================
-// XỬ LÝ LƯU (BACKEND)
-// ===============================
-if (isset($_POST['btnluu'])) {
-
-    $Masp   = trim($_POST['Masp']);
-    $Tensp  = trim($_POST['Tensp']);
-    $Madm   = $_POST['Madm'];
-    $Dvt    = trim($_POST['Dvt']);
-    $Giaban = str_replace(',', '', $_POST['Giaban']);
-
-    // --- Validate backend ---
-    if ($Masp == "" || $Tensp == "" || $Madm == "" || $Dvt == "") {
-        echo "<script>alert('Vui lòng nhập đầy đủ thông tin!');</script>";
-    } elseif (!is_numeric($Giaban)) {
-        echo "<script>alert('Giá bán phải là số!');</script>";
-    } else {
-
-      $check = mysqli_query($conn, "SELECT 1 FROM sanpham WHERE Tensp='$Tensp'");
-        if (mysqli_num_rows($check) > 0) {
-            echo "<script>alert('Tên sản phẩm đã tồn tại!');</script>";
-        } 
-        // --- Check trùng mã ---
-        $check = mysqli_query($conn, "SELECT 1 FROM sanpham WHERE Masp='$Masp'");
-        if (mysqli_num_rows($check) > 0) {
-            echo "<script>alert('Mã sản phẩm đã tồn tại!');</script>";
-        } else {
-
-            // --- Insert ---
-            $sql = "INSERT INTO sanpham (Masp, Tensp, Madm, Dvt, Giaban)
-                    VALUES ('$Masp', '$Tensp', '$Madm', '$Dvt', $Giaban)";
-
-            if (mysqli_query($conn, $sql)) {
-                echo "<script>alert('Thêm sản phẩm thành công!'); window.location.href='Sanpham.php'</script>";
-                
-                exit;
-            } else {
-                echo "<script>alert('Lỗi thêm sản phẩm!');</script>";
-            }
-        }
-    }
-}
-?>
 
 <!DOCTYPE html>
 <html lang="vi">
@@ -209,7 +150,7 @@ if (isset($_POST['btnluu'])) {
 
         <div class="noi-dung-chinh-form">
 
-            <form id="form-san-pham" method="POST">
+            <form id="form-san-pham" onsubmit="event.preventDefault(); submitForm();">
 
                 <!-- THÔNG TIN CƠ BẢN -->
                 <div class="khung-nhap-lieu">
@@ -230,13 +171,8 @@ if (isset($_POST['btnluu'])) {
                     <div class="nhom-truong hai-cot">
                         <div class="truong-nhap">
                             <label>Danh mục *</label>
-                            <select name="Madm">
-                                <option value="">-- Chọn danh mục --</option>
-                                <?php while ($row = mysqli_fetch_assoc($result_danhmuc)): ?>
-                                    <option value="<?= $row['Madm'] ?>">
-                                        <?= $row['Tendm'] ?>
-                                    </option>
-                                <?php endwhile; ?>
+                            <select id="Madm" name="Madm" required>
+                                <option value="">-- Đang tải danh mục... --</option>
                             </select>
                         </div>
 
@@ -262,7 +198,7 @@ if (isset($_POST['btnluu'])) {
                         <i class="fas fa-arrow-left"></i> Quay lại
                     </a>
 
-                    <button type="submit" name="btnluu" class="nut nut-them-moi">
+                    <button type="submit" class="nut nut-them-moi">
                         <i class="fas fa-save"></i> Lưu Sản Phẩm
                     </button>
                 </div>
@@ -319,6 +255,74 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+
+
+// Lấy danh sách danh mục từ API Gateway
+async function loadCategories() {
+    try {
+        // Lấy token từ localStorage giống như trang danh mục
+        const token = localStorage.getItem('token'); 
+        
+        const res = await fetch('http://localhost:8000/api/v1/categories', {
+            headers: {
+                'Authorization': 'Bearer ' + token // Thêm dòng này
+            }
+        });
+        const data = await res.json();
+        const select = document.getElementById('Madm');
+        select.innerHTML = '<option value="">-- Chọn danh mục --</option>';
+        
+        if (data.success && data.data.categories) {
+            data.data.categories.forEach(c => {
+                select.innerHTML += `<option value="${c.Madm}">${c.Tendm}</option>`;
+            });
+        }
+    } catch(err) {
+        console.error(err);
+        document.getElementById('Madm').innerHTML = '<option value="">Lỗi tải danh mục</option>';
+    }
+}
+
+// Lưu sản phẩm
+async function submitForm() {
+    const token = localStorage.getItem('token'); // Lấy token
+    if (!token) {
+        alert("Phiên làm việc hết hạn, vui lòng đăng nhập lại!");
+        return;
+    }
+
+    const formData = new FormData(document.getElementById('form-san-pham'));
+    const payload = Object.fromEntries(formData.entries());
+    payload.Giaban = payload.Giaban.replace(/,/g, '');
+    
+    if(!payload.Masp || !payload.Tensp || !payload.Madm || !payload.Dvt) {
+        alert("Vui lòng nhập đủ thông tin cơ bản!"); 
+        return;
+    }
+    
+    try {
+        const res = await fetch('http://localhost:8000/api/v1/products', {
+            method: 'POST',
+            headers: {
+                'Authorization': 'Bearer ' + token, // THÊM DÒNG NÀY
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(payload)
+        });
+        
+        const data = await res.json();
+        if(data.success) {
+            alert("Thêm sản phẩm thành công!");
+            window.location.href = 'Sanpham.php';
+        } else {
+            alert("Lỗi: " + data.message);
+        }
+    } catch(err) {
+        alert("Lỗi kết nối API: " + err.message);
+    }
+}
+
+loadCategories();
 </script>
 </body>
 </html>

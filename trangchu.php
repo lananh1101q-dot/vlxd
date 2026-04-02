@@ -1,5 +1,6 @@
 <?php
 session_start();
+require_once __DIR__ . '/role_helper.php';
 
 // 1. Kiểm tra bảo mật: Nếu chưa đăng nhập thì bắt quay lại trang dangnhap.php
 if (!isset($_SESSION['user'])) {
@@ -9,6 +10,8 @@ if (!isset($_SESSION['user'])) {
 
 // Lấy thông tin người dùng từ Session để hiển thị
 $user = $_SESSION['user'];
+$role = $user['role'] ?? 'guest';
+$roleName = getRoleName($role);
 
 // Dữ liệu thống kê của bạn
 $stats = [
@@ -111,6 +114,12 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
  <nav class="sidebar">
     <div class="text-center mb-4">
         <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
+        <div style="font-size: 0.85rem; margin-top: 10px; padding: 10px; background-color: rgba(255,255,255,0.1); border-radius: 5px;">
+            <div><strong><?= htmlspecialchars($user['fullname'] ?? $user['username']) ?></strong></div>
+            <div style="font-size: 0.75rem; margin-top: 5px;">
+                <i class="fas fa-user-circle"></i> <?= $roleName ?>
+            </div>
+        </div>
     </div>
     <ul class="nav flex-column">
         <li class="nav-item">
@@ -129,6 +138,8 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
             </ul>
         </li>
 
+        <!-- Chỉ Staff/Admin mới xem được -->
+        <?php if (isStaff() || isAdmin()): ?>
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
                 <i class="fas fa-file-import"></i> Phiếu nhập kho
@@ -142,7 +153,7 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                <i class="fas fa-file-export"></i> Phiếu xuất <!-- Đã sửa icon đúng -->
+                <i class="fas fa-file-export"></i> Phiếu xuất
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
@@ -150,20 +161,22 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
                 <li class="nav-item"><a class="nav-link" href="phieu_xuat.php"><i class="fas fa-plus-circle"></i> Tạo phiếu xuất</a></li>
             </ul>
         </li>
+        <?php endif; ?>
 
+        <!-- Tất cả đều xem được -->
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
                 <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao"> <!-- ĐÃ SỬA: thêm ul đúng id -->
+            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
                 <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
             </ul>
         </li>
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
-                <i class="fas fa-users"></i> Quản lý khách hàng <!-- Đã sửa icon đúng -->
+                <i class="fas fa-users"></i> Quản lý khách hàng
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
@@ -172,7 +185,8 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
             </ul>
         </li>
 
-        <li class="nav-item">
+        <!-- Logout -->
+        <li class="nav-item mt-4 pt-3 border-top border-white border-opacity-25">
             <a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
         </li>
     </ul>
@@ -191,10 +205,17 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
     <div class="text-center mt-5 pt-5">
         <h1 class="display-3 fw-bold text-primary mb-4">
             <i class="fas fa-warehouse me-3"></i>
-            Chào mừng đến với Trang Chủ
+            Chào mừng <?= htmlspecialchars($user['fullname'] ?? $user['username']) ?>!
         </h1>
         <p class="lead text-muted fs-4">
-            Hệ thống Quản Lý Kho Hàng - Sẵn sàng hỗ trợ bạn quản lý hiệu quả!
+            <?php 
+            $messages = [
+                'admin'  => 'Bạn có quyền quản trị viên - Toàn bộ tính năng đã sẵn sàng',
+                'staff'  => 'Bạn có quyền nhân viên - Có thể tạo và quản lý phiếu',
+                'guest'  => 'Bạn có quyền khách - Chỉ xem được thông tin, không có quyền sửa đổi'
+            ];
+            echo $messages[$role] ?? 'Chào mừng đến với hệ thống';
+            ?>
         </p>
         <hr class="w-50 mx-auto my-5 border-primary opacity-50">
         <p class="text-secondary fs-5">

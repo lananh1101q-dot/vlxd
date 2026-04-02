@@ -1,97 +1,11 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-$errors = [];
-$success = '';
-
-// Lấy dữ liệu dropdown
-$khos = $pdo->query("SELECT Makho, Tenkho FROM Kho ORDER BY Tenkho")->fetchAll();
-
-$sanphams = $pdo->query("
-    SELECT Masp, Tensp, Dvt
-    FROM Sanpham
-    ORDER BY Tensp
-")->fetchAll();
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $madieuchuyen = trim($_POST['madieuchuyen'] ?? '');
-    $khoxuat = trim($_POST['khoxuat'] ?? '');
-    $khonhap = trim($_POST['khonhap'] ?? '');
-    $ngaydieuchuyen = $_POST['ngaydieuchuyen'] ?? '';
-    $ghichu = trim($_POST['ghichu'] ?? '');
-
-    $maspArr = $_POST['masp'] ?? [];
-    $soluongArr = $_POST['soluong'] ?? [];
-
-    // Kiểm tra dữ liệu chính
-    if ($madieuchuyen === '' || $khoxuat === '' || $khonhap === '' || $ngaydieuchuyen === '') {
-        $errors[] = 'Vui lòng nhập đầy đủ Mã điều chuyển, Kho xuất, Kho nhập, Ngày điều chuyển.';
-    }
-    if ($khoxuat === $khonhap) {
-        $errors[] = 'Kho xuất và kho nhập không được trùng nhau.';
-    }
-
-    // Chuẩn hóa chi tiết sản phẩm
-    $items = [];
-    for ($i = 0; $i < count($maspArr); $i++) {
-        $masp = trim($maspArr[$i] ?? '');
-        $soluong = (float)($soluongArr[$i] ?? 0);
-        if ($masp !== '' && $soluong > 0) {
-            // Kiểm tra tồn kho ở kho xuất
-            $stmt = $pdo->prepare("SELECT Soluongton FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
-            $stmt->execute([$khoxuat, $masp]);
-            $tonkho = $stmt->fetchColumn();
-            if ($tonkho === false || $tonkho < $soluong) {
-                $errors[] = "Sản phẩm $masp không đủ tồn kho ở kho xuất (còn: " . ($tonkho ?: 0) . ").";
-            } else {
-                $items[] = ['masp' => $masp, 'soluong' => $soluong];
-            }
-        }
-    }
-
-    if (empty($items)) {
-        $errors[] = 'Vui lòng chọn ít nhất một sản phẩm để điều chuyển.';
-    }
-
-    if (empty($errors)) {
-        try {
-            $pdo->beginTransaction();
-
-            // Insert phiếu điều chuyển
-            $stmt = $pdo->prepare("
-                INSERT INTO Phieudieuchuyen (Madieuchuyen, Khoxuat, Khonhap, Ngaydieuchuyen, Ghichu)
-                VALUES (?, ?, ?, ?, ?)
-            ");
-            $stmt->execute([$madieuchuyen, $khoxuat, $khonhap, $ngaydieuchuyen, $ghichu]);
-
-            // Insert chi tiết
-            $stmtDetail = $pdo->prepare("
-                INSERT INTO Chitiet_Phieudieuchuyen (Madieuchuyen, Masp, Soluong)
-                VALUES (?, ?, ?)
-            ");
-            foreach ($items as $item) {
-                $stmtDetail->execute([$madieuchuyen, $item['masp'], $item['soluong']]);
-            }
-
-            $pdo->commit();
-            $success = 'Tạo phiếu điều chuyển thành công.';
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $errors[] = 'Lỗi khi tạo phiếu: ' . $e->getMessage();
-        }
-    }
-}
-?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'dangnhap.php';
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Phiếu điều chuyển kho</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -129,6 +43,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         .main-content {
             margin-left: 250px;
             padding: 20px;
+            background-color: #ffffff;
         }
         @media (max-width: 768px) {
             .sidebar {
@@ -142,7 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     </style>
 </head>
-<body class="bg-gray-100">
+<body class="bg-white">
     <nav class="sidebar">
         <div class="text-center mb-4">
             <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
@@ -239,94 +154,63 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <div class="max-w-5xl mx-auto p-6 space-y-6">
             <div class="flex items-center justify-between">
                 <div>
-                    <h1 class="text-2xl font-bold">Phiếu điều chuyển kho</h1>
-                    <p class="text-slate-400 text-sm mt-1">Điều chuyển hàng hóa giữa các kho</p>
+                    <h1 class="text-2xl font-bold text-slate-900">Phiếu điều chuyển kho</h1>
+                    <p class="text-slate-600 text-sm mt-1">Điều chuyển hàng hóa giữa các kho</p>
                 </div>
                 <div class="flex gap-2 text-sm">
                     <a href="danh_sach_phieu_dieuchuyen.php" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-700 font-semibold">← Danh sách phiếu điều chuyển</a>
                 </div>
             </div>
 
-            <?php if ($errors): ?>
-                <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
-                    <ul class="list-disc list-inside space-y-1">
-                        <?php foreach ($errors as $er): ?>
-                            <li><?= htmlspecialchars($er) ?></li>
-                        <?php endforeach; ?>
-                    </ul>
-                </div>
-            <?php endif; ?>
+            <div id="alertMsg" class="hidden px-4 py-3 rounded mb-4"></div>
 
-            <?php if ($success): ?>
-                <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
-                    <?= htmlspecialchars($success) ?>
-                </div>
-            <?php endif; ?>
-
-            <form method="post" class="bg-slate-800 rounded-lg p-5 space-y-4">
+            <form id="formDieuChuyen" onsubmit="event.preventDefault(); submitTransfer();" class="bg-white border border-slate-300 rounded-lg p-5 space-y-4">
                 <div class="grid md:grid-cols-3 gap-4">
                     <div>
-                        <label class="block text-sm text-slate-300 mb-2">Mã điều chuyển *</label>
-                        <input name="madieuchuyen" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['madieuchuyen'] ?? '') ?>" />
+                        <label class="block text-sm text-slate-800 mb-2 font-semibold">Mã điều chuyển *</label>
+                        <input id="madieuchuyen" name="madieuchuyen" required class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900" placeholder="Tự động nếu để trống" />
                     </div>
 
                     <div>
-                        <label class="block text-sm text-slate-300 mb-2">Kho xuất *</label>
-                        <select name="khoxuat" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+                        <label class="block text-sm text-slate-800 mb-2 font-semibold">Kho xuất *</label>
+                        <select id="khoxuat" name="khoxuat" required class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900">
                             <option value="">-- Chọn kho xuất --</option>
-                            <?php foreach ($khos as $k): ?>
-                                <option value="<?= htmlspecialchars($k['Makho']) ?>"
-                                    <?= (($_POST['khoxuat'] ?? '') === $k['Makho']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($k['Tenkho']) ?>
-                                </option>
-                            <?php endforeach; ?>
                         </select>
                     </div>
 
                     <div>
-                        <label class="block text-sm text-slate-300 mb-2">Kho nhập *</label>
-                        <select name="khonhap" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+                        <label class="block text-sm text-slate-800 mb-2 font-semibold">Kho nhập *</label>
+                        <select id="khonhap" name="khonhap" required class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900">
                             <option value="">-- Chọn kho nhập --</option>
-                            <?php foreach ($khos as $k): ?>
-                                <option value="<?= htmlspecialchars($k['Makho']) ?>"
-                                    <?= (($_POST['khonhap'] ?? '') === $k['Makho']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($k['Tenkho']) ?>
-                                </option>
-                            <?php endforeach; ?>
                         </select>
                     </div>
                 </div>
 
                 <div class="grid md:grid-cols-2 gap-4">
                     <div>
-                        <label class="block text-sm text-slate-300 mb-2">Ngày điều chuyển *</label>
-                        <input name="ngaydieuchuyen" type="date" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['ngaydieuchuyen'] ?? '') ?>" />
+                        <label class="block text-sm text-slate-800 mb-2 font-semibold">Ngày điều chuyển *</label>
+                        <input id="ngaydieuchuyen" name="ngaydieuchuyen" type="date" required class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900" />
                     </div>
 
                     <div>
-                        <label class="block text-sm text-slate-300 mb-2">Ghi chú</label>
-                        <input name="ghichu" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['ghichu'] ?? '') ?>" />
+                        <label class="block text-sm text-slate-800 mb-2 font-semibold">Ghi chú</label>
+                        <input name="ghichu" class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900" value="" />
                     </div>
                 </div>
 
                 <div class="space-y-4">
-                    <h3 class="text-lg font-semibold text-slate-200">Chi tiết sản phẩm điều chuyển</h3>
+                    <h3 class="text-lg font-semibold text-slate-900">Chi tiết sản phẩm điều chuyển</h3>
                     <div id="product-list">
                         <div class="product-item grid md:grid-cols-3 gap-4 items-end">
                             <div>
-                                <label class="block text-sm text-slate-300 mb-2">Sản phẩm</label>
-                                <select name="masp[]" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
+                                <label class="block text-sm text-slate-800 mb-2 font-semibold">Sản phẩm</label>
+                                <select name="masp[]" class="sp-select w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900">
                                     <option value="">-- Chọn sản phẩm --</option>
-                                    <?php foreach ($sanphams as $sp): ?>
-                                        <option value="<?= htmlspecialchars($sp['Masp']) ?>">
-                                            <?= htmlspecialchars($sp['Tensp']) ?> (<?= htmlspecialchars($sp['Dvt']) ?>)
-                                        </option>
-                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
-                                <label class="block text-sm text-slate-300 mb-2">Số lượng</label>
-                                <input name="soluong[]" type="number" step="0.01" min="0" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" />
+                                <label class="block text-sm text-slate-800 mb-2 font-semibold">Số lượng</label>
+                                <input name="soluong[]" type="number" step="0.01" min="0" class="w-full px-3 py-2 rounded bg-slate-50 border border-slate-300 text-slate-900" />
                             </div>
                             <div>
                                 <button type="button" class="remove-item px-3 py-2 rounded bg-red-600 hover:bg-red-700 text-white" style="display: none;">Xóa</button>
@@ -382,6 +266,122 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 e.target.closest(".product-item").remove();
             }
         });
+
+        // ======================= MICROSERVICES FETCH API =========================
+        let productsData = [];
+
+        async function initData() {
+            // Gọi Gateway lấy kho và sản phẩm
+            try {
+                const token = localStorage.getItem('token');
+                const headers = { 'Authorization': 'Bearer ' + token };
+                const [resKho, resSp] = await Promise.all([
+                    fetch('http://localhost:8000/api/v1/warehouses', { headers }),
+                    fetch('http://localhost:8000/api/v1/products', { headers })
+                ]);
+                const dataKho = await resKho.json();
+                const dataSp = await resSp.json();
+
+                if(dataKho.success && dataKho.data.warehouses) {
+                    let kHtml = '<option value="">-- Chọn kho --</option>';
+                    dataKho.data.warehouses.forEach(k => {
+                        kHtml += `<option value="${k.Makho}">${k.Tenkho}</option>`;
+                    });
+                    document.getElementById('khoxuat').innerHTML = kHtml;
+                    document.getElementById('khonhap').innerHTML = kHtml;
+                }
+
+                if(dataSp.success && dataSp.data.products) {
+                    productsData = dataSp.data.products;
+                    updateProductSelects();
+                }
+            } catch(e) {
+                console.error("Lỗi lấy dữ liệu API", e);
+            }
+        }
+
+        function updateProductSelects() {
+            let pHtml = '<option value="">-- Chọn sản phẩm --</option>';
+            productsData.forEach(p => {
+                pHtml += `<option value="${p.Masp}">${p.Masp} - ${p.Tensp}</option>`;
+            });
+            document.querySelectorAll('.sp-select').forEach(sel => {
+                if(sel.options.length <= 1) sel.innerHTML = pHtml;
+            });
+        }
+
+        document.getElementById("add-product").addEventListener("click", function () {
+            const productList = document.getElementById("product-list");
+            const newItem = productList.querySelector(".product-item").cloneNode(true);
+            newItem.querySelector("select").selectedIndex = 0;
+            newItem.querySelector("input").value = "";
+            newItem.querySelector(".remove-item").style.display = "block";
+            productList.appendChild(newItem);
+        });
+
+        async function submitTransfer() {
+            const mag = document.getElementById("madieuchuyen").value;
+            const kx = document.getElementById("khoxuat").value;
+            const kn = document.getElementById("khonhap").value;
+            const ns = document.getElementById("ngaydieuchuyen").value;
+
+            const items = [];
+            document.querySelectorAll('.product-item').forEach(el => {
+                const p = el.querySelector('select').value;
+                const sl = el.querySelector('input').value;
+                if(p && sl) {
+                    items.push({ Masp: p, Soluong: sl });
+                }
+            });
+
+            if(items.length === 0) {
+                showAlert('Vui lòng thêm sản phẩm vào phiếu.', false);
+                return;
+            }
+
+            const payload = {
+                Madieuchuyen: mag,
+                Khoxuat: kx,
+                Khonhap: kn,
+                Ngaydieuchuyen: ns,
+                details: items
+            };
+
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:8000/api/v1/transfers', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': 'Bearer ' + token
+                    },
+                    body: JSON.stringify(payload)
+                });
+                const d = await res.json();
+                if(d.success) {
+                    showAlert('Tạo phiếu điều chuyển thành công!', true);
+                    setTimeout(() => window.location.href='danh_sach_phieu_dieuchuyen.php', 1000);
+                } else {
+                    showAlert(d.message, false);
+                }
+            } catch(e) {
+                showAlert('Lỗi kết nối máy chủ', false);
+            }
+        }
+
+        function showAlert(msg, isSuccess) {
+            const a = document.getElementById('alertMsg');
+            a.classList.remove('hidden', 'bg-red-900/60', 'text-red-200', 'bg-emerald-900/60', 'text-emerald-100');
+            if(isSuccess) {
+                a.classList.add('bg-emerald-900/60', 'text-emerald-100');
+            } else {
+                a.classList.add('bg-red-900/60', 'text-red-200');
+            }
+            a.innerHTML = msg;
+        }
+
+        initData();
+        document.getElementById('ngaydieuchuyen').valueAsDate = new Date();
     </script>
 </body>
 </html>

@@ -1,42 +1,4 @@
-<?php
-// KẾT NỐI DATABASE
-$conn = mysqli_connect("localhost", "root", "", "vlxd");
 
-// XỬ LÝ THÊM DỮ LIỆU
-
-if (isset($_POST['btnTao'])) {
- // Đổi tên biến cho dễ quản lý
-    $Mancc   = $_POST['Mancc'];
-    $Tenncc  = $_POST['Tenncc'];
-    $Sdt   = $_POST['Sdtncc'];
-    $Diachi   = $_POST['Diachincc'];
-   
-    // --- Validate backend ---
-    if ($Mancc == "" || $Tenncc == ""|| $Sdt == "" || $Diachi == "" ) {
-        echo "<script>alert('Vui lòng nhập đầy đủ thông tin!');</script>";
-    }  else {
-
-        // --- Check trùng mã ---
-        $check = mysqli_query($conn, "SELECT 1 FROM Nhacungcap WHERE Mancc='$Mancc'");
-        if (mysqli_num_rows($check) > 0) {
-            echo "<script>alert('Mã nhà cung cấp đã tồn tại!');</script>";
-        } else {
-
-            // --- Insert ---
-            $sql = "INSERT INTO Nhacungcap (Mancc, Tenncc, Sdtncc, Diachincc)
-                    VALUES ('$Mancc', '$Tenncc', '$Sdt', '$Diachi')";
-
-            if (mysqli_query($conn, $sql)) {
-                echo "<script>alert('thêm thành công!'); window.location.href='Nhacungcap.php';</script>";
-                
-                exit;
-            } else {
-                echo "<script>alert('Lỗi thêm sản phẩm!');</script>";
-            }
-        }
-    }
-}
-?>
 
 <!DOCTYPE html>
 <html lang="en">
@@ -194,7 +156,7 @@ if (isset($_POST['btnTao'])) {
         </div>
 
         <div class="noi-dung-chinh-form">
-            <form action="taoncc.php" method="POST">
+            <form id="form-tao-ncc" onsubmit="event.preventDefault(); submitForm();">
                 
                 <div class="khung-nhap-lieu thong-tin-co-ban">
                     <h3 class="tieu-de-khung">Thông tin danh mục</h3>
@@ -228,7 +190,7 @@ if (isset($_POST['btnTao'])) {
 
                 <div class="vung-nut-hanh-dong">
                    
-                    <button type="submit" name="btnTao" class="nut nut-chinh">Tạo</button>
+                    <button type="submit" class="nut nut-chinh">Tạo</button>
                     <a href="/quanlykho/Nhacungcap.php" class="nut nut-phu">Quay lại</a>
                 </div>
             </form>
@@ -282,6 +244,37 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+
+async function submitForm() {
+    const form = document.getElementById('form-tao-ncc');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    
+    if(!payload.Mancc || !payload.Tenncc) {
+        alert("Vui lòng nhập đầy đủ Mã và Tên NCC!"); return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:8000/api/v1/suppliers', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert("Thêm nhà cung cấp thành công!");
+            window.location.href = 'Nhacungcap.php';
+        } else {
+            alert("Lỗi: " + data.message);
+        }
+    } catch(err) {
+        alert("Lỗi kết nối máy chủ");
+    }
+}
 </script>
 
 </body>

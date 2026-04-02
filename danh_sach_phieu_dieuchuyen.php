@@ -1,41 +1,11 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-// Xử lý xóa phiếu
-if (isset($_GET['delete']) && $_GET['delete'] === 'yes' && isset($_GET['id'])) {
-    $madieuchuyen = $_GET['id'];
-    try {
-        $pdo->beginTransaction();
-        $pdo->prepare("DELETE FROM Chitiet_Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$madieuchuyen]);
-        $pdo->prepare("DELETE FROM Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$madieuchuyen]);
-        $pdo->commit();
-        $success = 'xoa';
-    } catch (Exception $e) {
-        $pdo->rollBack();
-        $error = 'Lỗi khi xóa: ' . $e->getMessage();
-    }
-}
-
-// Lấy danh sách phiếu điều chuyển
-$query = "
-    SELECT p.*, kx.Tenkho AS TenKhoXuat, kn.Tenkho AS TenKhoNhap
-    FROM Phieudieuchuyen p
-    LEFT JOIN Kho kx ON p.Khoxuat = kx.Makho
-    LEFT JOIN Kho kn ON p.Khonhap = kn.Makho
-    ORDER BY p.Ngaydieuchuyen DESC
-";
-$phieus = $pdo->query($query)->fetchAll();
-?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
     <meta charset="UTF-8">
+    <script>
+        const token = localStorage.getItem('token');
+        if (!token) window.location.href = 'dangnhap.php';
+    </script>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Danh sách phiếu điều chuyển</title>
     <script src="https://cdn.tailwindcss.com"></script>
@@ -193,17 +163,7 @@ $phieus = $pdo->query($query)->fetchAll();
                 </div>
             </div>
 
-            <?php if (isset($success) && $success === 'xoa'): ?>
-                <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
-                    Đã xóa phiếu điều chuyển thành công.
-                </div>
-            <?php endif; ?>
 
-            <?php if (isset($error)): ?>
-                <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
-                    <?= htmlspecialchars($error) ?>
-                </div>
-            <?php endif; ?>
 
             <div class="bg-slate-800 rounded-lg overflow-hidden">
                 <table class="w-full text-sm">
@@ -217,32 +177,12 @@ $phieus = $pdo->query($query)->fetchAll();
                             <th class="px-4 py-3 text-center text-slate-300">Thao tác</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-slate-600">
-                        <?php if (empty($phieus)): ?>
-                            <tr>
-                                <td colspan="6" class="px-4 py-8 text-center text-slate-400">
-                                    Chưa có phiếu điều chuyển nào.
-                                </td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($phieus as $p): ?>
-                                <tr class="hover:bg-slate-700/50">
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($p['Madieuchuyen']) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($p['TenKhoXuat']) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($p['TenKhoNhap']) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars(date('d/m/Y', strtotime($p['Ngaydieuchuyen']))) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($p['Ghichu'] ?: '') ?></td>
-                                    <td class="px-4 py-3 text-center">
-                                        <a href="chi_tiet_phieu_dieuchuyen.php?id=<?= urlencode($p['Madieuchuyen']) ?>" class="text-blue-400 hover:text-blue-300 mr-2">
-                                            <i class="fas fa-eye"></i> Chi tiết
-                                        </a>
-                                        <a href="?delete=yes&id=<?= urlencode($p['Madieuchuyen']) ?>" onclick="return confirm('Bạn có chắc muốn xóa phiếu này?')" class="text-red-400 hover:text-red-300">
-                                            <i class="fas fa-trash"></i> Xóa
-                                        </a>
-                                    </td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
+                    <tbody id="transferList" class="divide-y divide-slate-600">
+                        <tr>
+                            <td colspan="6" class="px-4 py-8 text-center text-slate-400">
+                                Đang tải danh sách...
+                            </td>
+                        </tr>
                     </tbody>
                 </table>
             </div>
@@ -272,6 +212,58 @@ $phieus = $pdo->query($query)->fetchAll();
         document.getElementById("btnSanXuat").addEventListener("click", function () {
             document.getElementById("submenuSanXuat").classList.toggle("d-none");
         });
+
+        async function loadTransfers() {
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:8000/api/v1/transfers', {
+                    headers: {'Authorization': 'Bearer ' + token}
+                });
+                const data = await res.json();
+                const tbody = document.getElementById('transferList');
+                tbody.innerHTML = '';
+                if(data.success && data.data.transfers.length > 0) {
+                    data.data.transfers.forEach(p => {
+                        const tr = document.createElement('tr');
+                        tr.className = 'hover:bg-slate-700/50';
+                        tr.innerHTML = `
+                            <td class="px-4 py-3 text-slate-200 font-bold text-blue-400">${p.Madieuchuyen}</td>
+                            <td class="px-4 py-3 text-slate-200">${p.TenKhoxuat}</td>
+                            <td class="px-4 py-3 text-slate-200">${p.TenKhonhap}</td>
+                            <td class="px-4 py-3 text-slate-200">${p.Ngaydieuchuyen}</td>
+                            <td class="px-4 py-3 text-slate-200">${p.Ghichu || ''}</td>
+                            <td class="px-4 py-3 text-center">
+                                <a href="chi_tiet_phieu_dieuchuyen.php?id=${p.Madieuchuyen}" class="text-blue-400 hover:text-blue-300 mr-2"><i class="fas fa-eye"></i> Details</a>
+                                <a href="javascript:void(0)" onclick="deleteTransfer('${p.Madieuchuyen}')" class="text-red-400 hover:text-red-300"><i class="fas fa-trash"></i> Xóa</a>
+                            </td>
+                        `;
+                        tbody.appendChild(tr);
+                    });
+                } else {
+                    tbody.innerHTML = '<tr><td colspan="6" class="px-4 py-8 text-center text-slate-400">Không có dữ liệu</td></tr>';
+                }
+            } catch(e) {
+                document.getElementById('transferList').innerHTML = '<tr><td colspan="6" class="py-8 text-center text-red-500">Lỗi kết nối API Điều chuyển</td></tr>';
+            }
+        }
+
+        async function deleteTransfer(id) {
+            if(!confirm('Bạn có chắc muốn xóa phiếu điều chuyển: ' + id + '? Thao tác này KHÔNG hoàn trả lại kho!')) return;
+            try {
+                const token = localStorage.getItem('token');
+                const res = await fetch('http://localhost:8000/api/v1/transfers/' + id, { 
+                    method: 'DELETE',
+                    headers: {'Authorization': 'Bearer ' + token}
+                });
+                const data = await res.json();
+                if(data.success) {
+                    alert('Đã xóa phiếu điều chuyển');
+                    loadTransfers();
+                } else alert('Lỗi: ' + data.message);
+            } catch(e) { alert('Lỗi máy chủ'); }
+        }
+
+        loadTransfers();
     </script>
 </body>
 </html>

@@ -1,353 +1,213 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-$sql = "SELECT tk.Makho, k.Tenkho, tk.Masp, sp.Tensp, sp.Dvt, tk.Soluongton
-        FROM Tonkho_sp tk
-        JOIN Kho k ON tk.Makho = k.Makho
-        JOIN Sanpham sp ON tk.Masp = sp.Masp
-        ORDER BY k.Tenkho, sp.Tensp";
-$rows = $pdo->query($sql)->fetchAll();
-
-$sql_nvl = "SELECT tk.Makho, k.Tenkho, tk.Manvl, nvl.Tennvl, nvl.Dvt, tk.Soluongton
-        FROM Tonkho_nvl tk
-        JOIN Kho k ON tk.Makho = k.Makho
-        JOIN Nguyenvatlieu nvl ON tk.Manvl = nvl.Manvl
-        ORDER BY k.Tenkho, nvl.Tennvl";
-$rows_nvl = $pdo->query($sql_nvl)->fetchAll();
-?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Báo cáo tồn kho</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Báo cáo tồn kho - Quản lý kho VLXD</title>
+    <script>const token=localStorage.getItem('token');if(!token)window.location.href='dangnhap.php';</script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       <style>
-        body { 
-            background-color: #f8f9fa; 
-            font-family: 'Segoe UI', sans-serif; 
-        }
-        
-        /* Sidebar */
-        .sidebar { 
-            background-color: #007bff; 
-            height: 100vh; 
-            position: fixed; 
-            width: 250px; 
-            color: white; 
-            padding-top: 20px; 
-            top: 0;
-            left: 0;
-            overflow-y: auto;
-        }
-        
-        .sidebar .nav-link {
-            color: white !important;
-            padding: 12px 20px;
-            border-radius: 5px;
-            margin: 4px 10px;
-            transition: all 0.3s ease;
-            font-weight: normal; /* Chữ bình thường mặc định */
-        }
-        
-        /* CHỈ hover mới in đậm và nổi bật */
-        .sidebar .nav-link:hover {
-            background-color: #0069d9;    /* Nền xanh đậm hơn một chút */
-            font-weight: bold;            /* Chữ in đậm */
-            transform: translateX(8px);   /* Dịch nhẹ sang phải cho đẹp */
-        }
-        
-        /* Bỏ hoàn toàn style active - tất cả đều giống nhau */
-        .sidebar .nav-link.active {
-            background-color: transparent;
-            font-weight: normal;
-            transform: none;
-        }
-        
-        .main-content { 
-            margin-left: 250px; 
-            padding: 20px; 
-        }
-        @media (max-width: 768px) { 
-            .sidebar { 
-                width: 100%; 
-                height: auto; 
-                position: relative; 
-            } 
-            .main-content { 
-                margin-left: 0; 
-            } 
-        }
-         /* tránh ghi đè */
-        .d-none {
-            display: none !important;
-        }
-        #submenuSanPham {
-            transition: all 0.3s ease;
-        }
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body { background:#f0f4f8; font-family:'Segoe UI',sans-serif; }
+        .sidebar { background:linear-gradient(180deg,#1e3a5f 0%,#0d2137 100%); height:100vh; position:fixed; width:250px; color:white; padding-top:20px; top:0; left:0; overflow-y:auto; z-index:100; box-shadow:4px 0 15px rgba(0,0,0,0.2); }
+        .sidebar h4 { font-size:1rem; font-weight:700; padding:0 20px 15px; border-bottom:1px solid rgba(255,255,255,0.1); }
+        .sidebar .nav-link { color:rgba(255,255,255,0.8)!important; padding:10px 20px; border-radius:6px; margin:2px 8px; transition:all 0.25s; font-size:0.88rem; }
+        .sidebar .nav-link:hover { background:rgba(255,255,255,0.15)!important; color:#fff!important; transform:translateX(4px); }
+        .sidebar .nav-link.active-page { background:rgba(59,130,246,0.35)!important; color:#93c5fd!important; }
+        .submenu { display:none; } .submenu.open { display:block; }
+        .main-content { margin-left:250px; padding:30px; }
+        .page-header { background:linear-gradient(135deg,#1e3a5f,#2563eb); color:white; border-radius:12px; padding:24px 28px; margin-bottom:24px; box-shadow:0 4px 15px rgba(37,99,235,0.3); }
+        .card { border:none; border-radius:12px; box-shadow:0 2px 12px rgba(0,0,0,0.08); overflow:hidden; }
+        .card-header { background:#fff; border-bottom:2px solid #e2e8f0; font-weight:700; padding:16px 20px; }
+        .table th { background:#f8fafc; color:#475569; font-size:0.8rem; text-transform:uppercase; letter-spacing:.05em; border-bottom:2px solid #e2e8f0; }
+        .table td { vertical-align:middle; color:#374151; }
+        .badge-kho { background:#dbeafe; color:#1d4ed8; padding:3px 10px; border-radius:20px; font-size:0.78rem; font-weight:600; }
+        .badge-dvt { background:#dcfce7; color:#15803d; padding:3px 10px; border-radius:20px; font-size:0.78rem; }
+        .qty-low { color:#dc2626; font-weight:700; }
+        .qty-ok  { color:#16a34a; font-weight:700; }
+        .nav-tabs .nav-link { color:#64748b; border:none; padding:10px 20px; font-weight:600; }
+        .nav-tabs .nav-link.active { color:#2563eb; border-bottom:3px solid #2563eb; background:none; }
+        @media(max-width:768px){.sidebar{position:relative;width:100%;height:auto}.main-content{margin-left:0}}
     </style>
 </head>
 <body>
-    <nav class="sidebar">
-        <div class="text-center mb-4">
-            <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
-          </div>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
-            </li>
-           <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
-                    <i class="fas fa-box"></i> Quản lý sản phẩm
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
+<nav class="sidebar">
+    <div class="text-center mb-3"><h4><i class="fas fa-warehouse me-2"></i>Quản Lý Kho</h4></div>
+    <ul class="nav flex-column">
+        <li><a class="nav-link" href="trangchu.php"><i class="fas fa-home me-2"></i>Trang Chủ</a></li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuSP',this)"><i class="fas fa-box me-2"></i>Quản lý sản phẩm<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuSP">
+                <li><a class="nav-link" href="Sanpham.php"><i class="fas fa-cube me-2"></i>Sản phẩm</a></li>
+                <li><a class="nav-link" href="dmsp.php"><i class="fas fa-tags me-2"></i>Danh mục</a></li>
+                <li><a class="nav-link" href="Nhacungcap.php"><i class="fas fa-truck me-2"></i>Nhà cung cấp</a></li>
+                <li><a class="nav-link" href="Nguyenvatlieu.php"><i class="fas fa-layer-group me-2"></i>Nguyên vật liệu</a></li>
+                <li><a class="nav-link" href="Congthucsanpham.php"><i class="fas fa-file-invoice me-2"></i>Công thức SP</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuNhap',this)"><i class="fas fa-file-import me-2"></i>Phiếu nhập kho<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuNhap">
+                <li><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-list me-2"></i>Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_nhap.php"><i class="fas fa-plus-circle me-2"></i>Tạo phiếu nhập</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuXuat',this)"><i class="fas fa-file-export me-2"></i>Phiếu xuất<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuXuat">
+                <li><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-list me-2"></i>Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_xuat.php"><i class="fas fa-plus-circle me-2"></i>Tạo phiếu xuất</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuDC',this)"><i class="fas fa-exchange-alt me-2"></i>Điều chuyển<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuDC">
+                <li><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php"><i class="fas fa-list me-2"></i>Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_dieuchuyen.php"><i class="fas fa-plus-circle me-2"></i>Tạo phiếu</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link active-page" href="#" onclick="toggleMenu('menuBC',this)"><i class="fas fa-chart-bar me-2"></i>Báo cáo & Thống kê<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu open" id="menuBC">
+                <li><a class="nav-link active-page" href="tonkho.php"><i class="fas fa-warehouse me-2"></i>Tồn kho tổng</a></li>
+                <li><a class="nav-link" href="tonkho_sp.php"><i class="fas fa-cubes me-2"></i>Tồn kho thành phẩm</a></li>
+                <li><a class="nav-link" href="tonkho_nvl.php"><i class="fas fa-boxes-stacked me-2"></i>Tồn kho NVL</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuKH',this)"><i class="fas fa-users me-2"></i>Khách hàng<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuKH">
+                <li><a class="nav-link" href="khachhang.php"><i class="fas fa-user me-2"></i>Khách hàng</a></li>
+                <li><a class="nav-link" href="loaikhachhang.php"><i class="fas fa-users-cog me-2"></i>Loại khách hàng</a></li>
+            </ul>
+        </li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuSX',this)"><i class="fas fa-cogs me-2"></i>Sản xuất<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu" id="menuSX">
+                <li><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list me-2"></i>Danh sách lệnh SX</a></li>
+                <li><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle me-2"></i>Tạo lệnh SX</a></li>
+            </ul>
+        </li>
+        <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+    </ul>
+</nav>
 
-                <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
-                    <li class="nav-item">
-                        <a class="nav-link" href="Sanpham.php">
-                            <i class="fas fa-cube"></i> Sản phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="dmsp.php">
-                            <i class="fas fa-tags"></i> Danh mục sản phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="Nhacungcap.php">
-                            <i class="fas fa-truck"></i> Nhà cung cấp
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-
-            <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
-                  <i class="fas fa-file-import"></i> Phiếu nhập kho
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-
-              <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
-                  <li class="nav-item">
-                      <a class="nav-link" href="danh_sach_phieu_nhap.php">
-                          <i class="fas fa-list"></i> Danh sách phiếu nhập
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="phieu_nhap.php">
-                          <i class="fas fa-plus-circle"></i> Tạo phiếu nhập
-                      </a>
-                  </li>
-              </ul>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                  <i class="fas fa-file-import"></i> Phiếu xuất
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-
-              <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
-                  <li class="nav-item">
-                      <a class="nav-link" href="danh_sach_phieu_xuat.php">
-                          <i class="fas fa-list"></i> Danh sách phiếu xuất
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="phieu_xuat.php">
-                          <i class="fas fa-plus-circle"></i> Tạo phiếu xuất
-                      </a>
-                  </li>
-              </ul>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnDieuChuyen">
-                  <i class="fas fa-exchange-alt"></i> Điều chuyển
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-              <ul class="nav flex-column ms-3 d-none" id="submenuDieuChuyen">
-                  <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php"><i class="fas fa-list"></i> Danh sách phiếu điều chuyển</a></li>
-                  <li class="nav-item"><a class="nav-link" href="phieu_dieuchuyen.php"><i class="fas fa-plus-circle"></i> Tạo phiếu điều chuyển</a></li>
-              </ul>
-          </li>
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
-                    <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-
-            
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho.php">
-                            <i class="fas fa-warehouse"></i> Báo cáo tồn kho tổng
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho_sp.php">
-                            <i class="fas fa-cubes"></i> Tồn kho thành phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho_nvl.php">
-                            <i class="fas fa-boxes-stacked"></i> Tồn kho nguyên vật liệu
-                        </a>
-                    </li>
-                
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="khachhang.php"><i class="fas fa-users"></i> Khách hàng</a>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
-                    <i class="fas fa-cogs"></i> Sản xuất
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
-                    <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
-                    <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
-            </li>
-        </ul>
-    </nav>
-
-    <div class="main-content">
-  <div class="max-w-6xl mx-auto p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold">Báo cáo tồn kho</h1>
-        <p class="text-slate-400 text-sm mt-1">Danh sách tồn kho theo kho và sản phẩm</p>
-      </div>
-      <div class="flex gap-2 text-sm">
-        <a href="dashboard.php" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">← Dashboard</a>
-        <a href="logout.php" class="px-3 py-2 rounded bg-red-600 hover:bg-red-700">Đăng xuất</a>
-      </div>
+<div class="main-content">
+    <div class="page-header">
+        <h1 class="mb-1" style="font-size:1.6rem"><i class="fas fa-warehouse me-2"></i>Báo cáo tồn kho</h1>
+        <p class="mb-0 opacity-75">Xem tồn kho thành phẩm và nguyên vật liệu theo kho</p>
     </div>
 
-    <div class="flex items-center justify-between">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-900 text-slate-300">
-          <tr>
-            <th class="px-4 py-3 text-left">Kho</th>
-            <th class="px-4 py-3 text-left">Mã SP</th>
-            <th class="px-4 py-3 text-left">Tên sản phẩm</th>
-            <th class="px-4 py-3 text-left">ĐVT</th>
-            <th class="px-4 py-3 text-right">Số lượng tồn</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($rows)): ?>
-            <tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">Chưa có dữ liệu tồn kho.</td></tr>
-          <?php else: ?>
-            <?php foreach ($rows as $r): ?>
-              <tr class="border-t border-slate-800">
-                <td class="px-4 py-2">[<?= htmlspecialchars($r['Makho']) ?>] <?= htmlspecialchars($r['Tenkho']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Masp']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Tensp']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Dvt']) ?></td>
-                <td class="px-4 py-2 text-right font-semibold"><?= number_format($r['Soluongton']) ?></td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  </div>
+    <div id="alertBox" class="alert alert-warning d-none">Đang tải dữ liệu...</div>
 
-  <div class="main-content">
-  <div class="max-w-6xl mx-auto p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold">Báo cáo tồn kho nguyên vật liệu</h1>
-        <p class="text-slate-400 text-sm mt-1">Danh sách tồn nguyên vật liệu theo kho</p>
-      </div>
+    <div class="card mb-4">
+        <div class="card-header">
+            <ul class="nav nav-tabs card-header-tabs" id="invTabs">
+                <li class="nav-item"><a class="nav-link active" onclick="showTab('sp')" href="#" id="tabSP">
+                    <i class="fas fa-cubes me-1"></i>Tồn kho thành phẩm
+                </a></li>
+                <li class="nav-item"><a class="nav-link" onclick="showTab('nvl')" href="#" id="tabNVL">
+                    <i class="fas fa-layer-group me-1"></i>Tồn kho nguyên vật liệu
+                </a></li>
+            </ul>
+        </div>
+        <div class="card-body p-0">
+            <div id="paneSP">
+                <div class="p-3"><input class="form-control" id="searchSP" placeholder="🔍 Tìm theo kho, mã SP, tên..." oninput="filterTable('tbodySP','searchSP')"></div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr>
+                            <th>Kho</th><th>Mã SP</th><th>Tên sản phẩm</th><th>ĐVT</th>
+                            <th class="text-end">Số lượng tồn</th>
+                        </tr></thead>
+                        <tbody id="tbodySP"><tr><td colspan="5" class="text-center py-4 text-muted">Đang tải...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+            <div id="paneNVL" class="d-none">
+                <div class="p-3"><input class="form-control" id="searchNVL" placeholder="🔍 Tìm theo kho, mã NVL, tên..." oninput="filterTable('tbodyNVL','searchNVL')"></div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead><tr>
+                            <th>Kho</th><th>Mã NVL</th><th>Tên NVL</th><th>ĐVT</th>
+                            <th class="text-end">Số lượng tồn</th>
+                        </tr></thead>
+                        <tbody id="tbodyNVL"><tr><td colspan="5" class="text-center py-4 text-muted">Đang tải...</td></tr></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     </div>
+</div>
 
-    <div class="flex items-center justify-between">
-      <table class="min-w-full text-sm">
-        <thead class="bg-slate-900 text-slate-300">
-          <tr>
-            <th class="px-4 py-3 text-left">Kho</th>
-            <th class="px-4 py-3 text-left">Mã NVL</th>
-            <th class="px-4 py-3 text-left">Tên NVL</th>
-            <th class="px-4 py-3 text-left">ĐVT</th>
-            <th class="px-4 py-3 text-right">Số lượng tồn</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php if (empty($rows_nvl)): ?>
-            <tr><td colspan="5" class="px-4 py-4 text-center text-slate-400">Chưa có dữ liệu tồn nguyên vật liệu.</td></tr>
-          <?php else: ?>
-            <?php foreach ($rows_nvl as $r): ?>
-              <tr class="border-t border-slate-800">
-                <td class="px-4 py-2">[<?= htmlspecialchars($r['Makho']) ?>] <?= htmlspecialchars($r['Tenkho']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Manvl']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Tennvl']) ?></td>
-                <td class="px-4 py-2"><?= htmlspecialchars($r['Dvt']) ?></td>
-                <td class="px-4 py-2 text-right font-semibold"><?= number_format($r['Soluongton']) ?></td>
-              </tr>
-            <?php endforeach; ?>
-          <?php endif; ?>
-        </tbody>
-      </table>
-    </div>
-  </div>
-  </div>
 <script>
-document.getElementById("btnSanPham").addEventListener("click", function () {
-    const menu = document.getElementById("submenuSanPham");
-    menu.classList.toggle("d-none");
-    
-});
-document.getElementById("btnBaoCao").addEventListener("click", function () {
-    document.getElementById("submenuBaoCao").classList.toggle("d-none");
-});
-const btnPhieuNhap = document.getElementById("btnPhieuNhap");
-const submenuPhieuNhap = document.getElementById("submenuPhieuNhap");
+const API = 'http://localhost:8000/api/v1';
+const headers = { 'Authorization': 'Bearer ' + localStorage.getItem('token') };
 
-if (btnPhieuNhap) {
-    btnPhieuNhap.addEventListener("click", function () {
-        submenuPhieuNhap.classList.toggle("d-none");
+function toggleMenu(id, el) {
+    const m = document.getElementById(id);
+    m.classList.toggle('open');
+    event.preventDefault();
+}
+
+function showTab(tab) {
+    document.getElementById('paneSP').classList.toggle('d-none', tab !== 'sp');
+    document.getElementById('paneNVL').classList.toggle('d-none', tab !== 'nvl');
+    document.getElementById('tabSP').classList.toggle('active', tab === 'sp');
+    document.getElementById('tabNVL').classList.toggle('active', tab === 'nvl');
+}
+
+function filterTable(tbodyId, inputId) {
+    const query = document.getElementById(inputId).value.toLowerCase();
+    document.querySelectorAll('#' + tbodyId + ' tr').forEach(tr => {
+        tr.style.display = tr.textContent.toLowerCase().includes(query) ? '' : 'none';
     });
 }
-const btnPhieuXuat = document.getElementById("btnPhieuXuat");
-const submenuPhieuXuat = document.getElementById("submenuPhieuXuat");
 
-if (btnPhieuXuat) {
-    btnPhieuXuat.addEventListener("click", function () {
-        submenuPhieuXuat.classList.toggle("d-none");
-    });
-}
-const btnSanXuat = document.getElementById("btnSanXuat");
-const submenuSanXuat = document.getElementById("submenuSanXuat");
+function fmt(n) { return Number(n||0).toLocaleString('vi-VN'); }
 
-if (btnSanXuat) {
-    btnSanXuat.addEventListener("click", function () {
-        submenuSanXuat.classList.toggle("d-none");
-    });
-}
-const btnDieuChuyen = document.getElementById("btnDieuChuyen");
-const submenuDieuChuyen = document.getElementById("submenuDieuChuyen");
+async function loadInventory() {
+    try {
+        const res = await fetch(API + '/inventory', { headers });
+        const data = await res.json();
+        if (!data.success) throw new Error(data.message);
 
-if (btnDieuChuyen) {
-    btnDieuChuyen.addEventListener("click", function () {
-        submenuDieuChuyen.classList.toggle("d-none");
-    });
+        // Thành phẩm
+        const tbSP = document.getElementById('tbodySP');
+        if (data.data.products.length === 0) {
+            tbSP.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Chưa có dữ liệu tồn kho thành phẩm.</td></tr>';
+        } else {
+            tbSP.innerHTML = data.data.products.map(r => `
+                <tr>
+                    <td><span class="badge-kho">[${r.Makho}] ${r.Tenkho}</span></td>
+                    <td><code>${r.Masp}</code></td>
+                    <td><strong>${r.Tensp}</strong></td>
+                    <td><span class="badge-dvt">${r.Dvt}</span></td>
+                    <td class="text-end ${r.Soluongton < 10 ? 'qty-low' : 'qty-ok'}">${fmt(r.Soluongton)}</td>
+                </tr>`).join('');
+        }
+
+        // NVL
+        const tbNVL = document.getElementById('tbodyNVL');
+        if (data.data.materials.length === 0) {
+            tbNVL.innerHTML = '<tr><td colspan="5" class="text-center py-4 text-muted">Chưa có dữ liệu tồn kho NVL.</td></tr>';
+        } else {
+            tbNVL.innerHTML = data.data.materials.map(r => `
+                <tr>
+                    <td><span class="badge-kho">[${r.Makho}] ${r.Tenkho}</span></td>
+                    <td><code>${r.Manvl}</code></td>
+                    <td><strong>${r.Tennvl}</strong></td>
+                    <td><span class="badge-dvt">${r.Dvt}</span></td>
+                    <td class="text-end ${r.Soluongton < 10 ? 'qty-low' : 'qty-ok'}">${fmt(r.Soluongton)}</td>
+                </tr>`).join('');
+        }
+    } catch(e) {
+        document.getElementById('alertBox').classList.remove('d-none');
+        document.getElementById('alertBox').textContent = 'Lỗi tải dữ liệu: ' + e.message;
+    }
 }
+
+loadInventory();
 </script>
 </body>
 </html>

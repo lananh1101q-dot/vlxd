@@ -1,89 +1,4 @@
-<?php
-// =========================
-// KẾT NỐI DATABASE
-// =========================
-$conn = mysqli_connect("localhost", "root", "", "quanlykho");
-if (!$conn) {
-    die("Lỗi kết nối CSDL: " . mysqli_connect_error());
-}
 
-$loi = "";
-
-// =========================
-// XỬ LÝ THÊM DANH MỤC
-// =========================
-if (isset($_POST['btnTao'])) {
-
-    // LẤY DỮ LIỆU + CHỐNG SQL INJECTION
-    $Madm  = mysqli_real_escape_string($conn, trim($_POST['Madm']));
-    $Tendm = mysqli_real_escape_string($conn, trim($_POST['Tendm']));
-    $Mota  = mysqli_real_escape_string($conn, trim($_POST['Mota']));
-
-    // =========================
-    // 1. KIỂM TRA RỖNG
-    // =========================
-    if ($Madm == "" || $Tendm == "") {
-        $loi = "❌ Mã danh mục và Tên danh mục không được để trống!";
-    }
-
-    // =========================
-    // 2. KIỂM TRA ĐỘ DÀI
-    // =========================
-    else if (strlen($Madm) > 10) {
-        $loi = "❌ Mã danh mục không được quá 10 ký tự!";
-    }
-    else if (strlen($Tendm) > 100) {
-        $loi = "❌ Tên danh mục không được quá 100 ký tự!";
-    }
-    else if (strlen($Mota) > 255) {
-        $loi = "❌ Mô tả không được quá 255 ký tự!";
-    }
-
-    // =========================
-    // 3. KIỂM TRA TRÙNG MÃ
-    // =========================
-    else {
-        $checkMa = mysqli_query(
-            $conn,
-            "SELECT Madm FROM danhmucsp WHERE Madm = '$Madm'"
-        );
-
-        if (mysqli_num_rows($checkMa) > 0) {
-            $loi = "❌ Mã danh mục đã tồn tại!";
-        }
-    }
-
-    // =========================
-    // 4. KIỂM TRA TRÙNG TÊN
-    // =========================
-    if ($loi == "") {
-        $checkTen = mysqli_query(
-            $conn,
-            "SELECT Tendm FROM danhmucsp WHERE Tendm = '$Tendm'"
-        );
-
-        if (mysqli_num_rows($checkTen) > 0) {
-            $loi = "❌ Tên danh mục đã tồn tại!";
-        }
-    }
-
-    // =========================
-    // 5. INSERT
-    // =========================
-    if ($loi == "") {
-        $sql = "INSERT INTO danhmucsp (Madm, Tendm, Mota)
-                VALUES ('$Madm', '$Tendm', '$Mota')";
-
-        if (mysqli_query($conn, $sql)) {
-            // THÀNH CÔNG → QUAY VỀ DANH SÁCH
-            header("Location: dmsp.php?success=1");
-            exit;
-        } else {
-            $loi = "❌ Lỗi SQL: " . mysqli_error($conn);
-        }
-    }
-}
-?>
 
 
 <!DOCTYPE html>
@@ -242,7 +157,7 @@ if (isset($_POST['btnTao'])) {
         </div>
 
         <div class="noi-dung-chinh-form">
-            <form action="taodmsp.php" method="POST">
+            <form id="form-tao-dmsp" onsubmit="event.preventDefault(); submitForm();">
                 
                 <div class="khung-nhap-lieu thong-tin-co-ban">
                     <h3 class="tieu-de-khung">Thông tin danh mục</h3>
@@ -268,7 +183,7 @@ if (isset($_POST['btnTao'])) {
 
                 <div class="vung-nut-hanh-dong">
                  
-                    <button type="submit" name="btnTao" class="nut nut-chinh">Tạo</button>
+                    <button type="submit" class="nut nut-chinh">Tạo</button>
                     <a href="/quanlykho/dmsp.php" class="nut nut-phu">Quay lại</a>
                 </div>
             </form>
@@ -322,6 +237,37 @@ document.addEventListener("DOMContentLoaded", function () {
     });
 
 });
+
+async function submitForm() {
+    const form = document.getElementById('form-tao-dmsp');
+    const formData = new FormData(form);
+    const payload = Object.fromEntries(formData.entries());
+    
+    if(!payload.Tendm) {
+        alert("Vui lòng nhập Tên danh mục!"); return;
+    }
+    
+    try {
+        const token = localStorage.getItem('token');
+        const res = await fetch('http://localhost:8000/api/v1/categories', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + token
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if(data.success) {
+            alert("Thêm danh mục thành công!");
+            window.location.href = 'dmsp.php';
+        } else {
+            alert("Lỗi: " + data.message);
+        }
+    } catch(err) {
+        alert("Lỗi kết nối máy chủ");
+    }
+}
 </script>
 </body>
 </html>

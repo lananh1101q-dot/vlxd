@@ -1,333 +1,206 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-$errors = [];
-$maxuat_get = $_GET['id'] ?? '';
-
-if (empty($maxuat_get)) {
-    header('Location: danh_sach_phieu_xuat.php');
-    exit;
-}
-
-// 1. Lấy dữ liệu dropdown
-$khachhangs = $pdo->query("SELECT Makh, Tenkh FROM Khachhang ORDER BY Tenkh")->fetchAll();
-$sanphams = $pdo->query("SELECT Masp, Tensp, Dvt, Giaban FROM Sanpham ORDER BY Tensp")->fetchAll();
-$khos = $pdo->query("SELECT Makho, Tenkho FROM Kho ORDER BY Tenkho")->fetchAll();
-
-// 2. Lấy dữ liệu phiếu hiện tại
-$stmtPhieu = $pdo->prepare("SELECT * FROM Phieuxuat WHERE Maxuathang = ?");
-$stmtPhieu->execute([$maxuat_get]);
-$phieuXuat = $stmtPhieu->fetch();
-
-if (!$phieuXuat) {
-    header('Location: danh_sach_phieu_xuat.php?error=Phiếu không tồn tại');
-    exit;
-}
-
-// 3. Lấy chi tiết phiếu cũ (để hoàn trả tồn kho)
-$stmtCt = $pdo->prepare("SELECT * FROM Chitiet_Phieuxuat WHERE Maxuathang = ?");
-$stmtCt->execute([$maxuat_get]);
-$chiTietPhieuCu = $stmtCt->fetchAll();
-
-// 4. Xử lý khi nhấn Cập nhật
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $maxuat_post = trim($_POST['maxuathang'] ?? ''); // Mã phiếu (readonly)
-    $makh = $_POST['makh'] ?? '';
-    $ngayxuat = $_POST['ngayxuat'] ?? '';
-    $ghichu = trim($_POST['ghichu'] ?? '');
-    $makho_update = $_POST['makho'] ?? ''; // KHO NGƯỜI DÙNG CHỌN ĐỂ CẬP NHẬT TỒN
-
-    $maspArr = $_POST['masp'] ?? [];
-    $soluongArr = $_POST['soluong'] ?? [];
-    $dongiaArr = $_POST['dongia'] ?? [];
-
-    if (empty($makh) || empty($ngayxuat) || empty($makho_update)) {
-        $errors[] = 'Vui lòng chọn Khách hàng, Ngày xuất và Kho cập nhật.';
-    }
-
-    // Chuẩn hóa danh sách item mới
-    $items = [];
-    for ($i = 0; $i < count($maspArr); $i++) {
-        $ms = trim($maspArr[$i] ?? '');
-        $sl = (int)($soluongArr[$i] ?? 0);
-        $dg = (float)($dongiaArr[$i] ?? 0);
-        if ($ms !== '' && $sl > 0) {
-            $items[] = ['masp' => $ms, 'soluong' => $sl, 'dongia' => $dg];
-        }
-    }
-
-    if (empty($items)) $errors[] = 'Cần ít nhất một sản phẩm hợp lệ.';
-
-    if (!$errors) {
-        try {
-            $pdo->beginTransaction();
-
-            /* BƯỚC 1: HOÀN TRẢ TỒN KHO CŨ */
-            // Vì bảng Phieuxuat không có mã kho, ta hoàn trả vào kho người dùng vừa chọn trên form
-            $stmtHoan = $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton + ? WHERE Masp = ? AND Makho = ?");
-            foreach ($chiTietPhieuCu as $ct) {
-                $stmtHoan->execute([$ct['Soluong'], $ct['Masp'], $makho_update]);
-            }
-
-            /* BƯỚC 2: XÓA CHI TIẾT CŨ */
-            $pdo->prepare("DELETE FROM Chitiet_Phieuxuat WHERE Maxuathang = ?")->execute([$maxuat_get]);
-
-            /* BƯỚC 3: CẬP NHẬT PHIẾU XUẤT */
-            $tong = 0;
-            foreach ($items as $it) { $tong += $it['soluong'] * $it['dongia']; }
-
-            $stmtUpPhieu = $pdo->prepare("UPDATE Phieuxuat SET Makh = ?, Makho = ?, Ngayxuat = ?, Tongtienxuat = ?, Ghichu = ? WHERE Maxuathang = ?");
-            $stmtUpPhieu->execute([$makh, $makho_update, $ngayxuat, $tong, $ghichu, $maxuat_get]);
-
-            /* BƯỚC 4: THÊM CHI TIẾT MỚI & TRỪ TỒN KHO */
-            $stmtIns = $pdo->prepare("INSERT INTO Chitiet_Phieuxuat (Maxuathang, Masp, Soluong, Dongiaxuat) VALUES (?, ?, ?, ?)");
-            $stmtTru = $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton - ? WHERE Masp = ? AND Makho = ? AND Soluongton >= ?");
-
-            foreach ($items as $it) {
-                // Thêm chi tiết
-                $stmtIns->execute([$maxuat_get, $it['masp'], $it['soluong'], $it['dongia']]);
-
-                // Trừ tồn kho tại kho đã chọn
-                $stmtTru->execute([$it['soluong'], $it['masp'], $makho_update, $it['soluong']]);
-
-                if ($stmtTru->rowCount() === 0) {
-                    throw new Exception("Sản phẩm {$it['masp']} không đủ tồn kho tại kho đã chọn!");
-                }
-            }
-
-            $pdo->commit();
-            header("Location: danh_sach_phieu_xuat.php?success=sua");
-            exit;
-
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $errors[] = 'Lỗi: ' . $e->getMessage();
-        }
-    }
-}
-?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="utf-8" />
-    <title>Sửa phiếu xuất kho</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sửa Phiếu Xuất - VLXD</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <style>
-        body { background-color: #f8f9fa; }
-        .sidebar { background-color: #007bff; height: 100vh; position: fixed; width: 250px; color: white; padding-top: 20px; top: 0; left: 0; }
-        .sidebar .nav-link { color: white !important; padding: 12px 20px; }
-        .main-content { margin-left: 250px; padding: 20px; }
-        .readonly-field { background-color: #e9ecef !important; cursor: not-allowed; }
+        body { background-color: #f8f9fa; font-family: 'Segoe UI', sans-serif; }
+        .sidebar { background: linear-gradient(180deg, #198754, #0f5132); height: 100vh; position: fixed; width: 250px; color: white; padding-top: 20px; z-index: 1000; }
+        .sidebar .nav-link { color: white !important; padding: 12px 20px; border-radius: 6px; margin: 4px 10px; transition: all 0.3s; }
+        .sidebar .nav-link:hover { background: rgba(255,255,255,0.1); transform: translateX(5px); }
+        .main-content { margin-left: 250px; padding: 30px; min-height: 100vh; }
+        .card { border: none; border-radius: 15px; box-shadow: 0 5px 25px rgba(0,0,0,0.05); }
+        .form-label { font-weight: 600; color: #495057; font-size: 0.9rem; }
+        .table thead { background-color: #f8f9fa; }
+        .btn-remove { color: #dc3545; cursor: pointer; }
+        .readonly-id { background-color: #e9ecef !important; font-family: monospace; font-weight: bold; }
     </style>
 </head>
 <body>
- <nav class="sidebar">
-    <div class="text-center mb-4">
-        <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
+    <nav class="sidebar">
+        <div class="text-center mb-4"><h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4></div>
+        <ul class="nav flex-column">
+            <li class="nav-item"><a class="nav-link" href="trangchu.php"><i class="fas fa-home me-2"></i>Trang Chủ</a></li>
+            <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-list me-2"></i>Danh sách phiếu xuất</a></li>
+            <li class="nav-item"><hr class="bg-white opacity-25"></li>
+            <li class="nav-item"><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+        </ul>
+    </nav>
+
+    <div class="main-content">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 class="fw-bold text-dark">Sửa Phiếu Xuất Kho</h2>
+            <a href="danh_sach_phieu_xuat.php" class="btn btn-outline-secondary px-4"><i class="fas fa-arrow-left me-2"></i>Quay lại</a>
+        </div>
+
+        <div class="card p-4">
+            <form id="editForm">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label class="form-label">Mã Phiếu Xuất</label>
+                        <input type="text" id="Maxuathang" class="form-control readonly-id" readonly>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Khách Hàng *</label>
+                        <select id="Makh" class="form-select" required></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Kho Xuất *</label>
+                        <select id="Makho" class="form-select" required></select>
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Ngày Xuất *</label>
+                        <input type="date" id="Ngayxuat" class="form-control" required>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <label class="form-label">Ghi chú</label>
+                        <textarea id="Ghichu" class="form-control" rows="2"></textarea>
+                    </div>
+                </div>
+
+                <div class="mt-5 mb-3 d-flex justify-content-between align-items-end">
+                    <h5 class="fw-bold mb-0 text-success"><i class="fas fa-dolly me-2"></i>Hàng hóa xuất kho</h5>
+                    <button type="button" class="btn btn-outline-success btn-sm px-3" onclick="addRow()">
+                        <i class="fas fa-plus me-1"></i>Thêm sản phẩm
+                    </button>
+                </div>
+
+                <div class="table-responsive border rounded">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light text-secondary">
+                            <tr>
+                                <th width="40%">Sản phẩm / Hàng hóa</th>
+                                <th width="20%">Số lượng</th>
+                                <th width="25%">Đơn giá xuất</th>
+                                <th width="10%" class="text-center">Xóa</th>
+                            </tr>
+                        </thead>
+                        <tbody id="detailList"></tbody>
+                    </table>
+                </div>
+
+                <div class="text-end mt-5">
+                    <button type="button" class="btn btn-success btn-lg px-5 fw-bold shadow-sm" onclick="submitEdit()">
+                        <i class="fas fa-check-circle me-2"></i>Cập nhật Phiếu Xuất
+                    </button>
+                </div>
+            </form>
+        </div>
     </div>
-    <ul class="nav flex-column">
-        <li class="nav-item">
-            <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
-        </li>
 
-        <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
-                <i class="fas fa-box"></i> Quản lý sản phẩm
-                <i class="fas fa-chevron-down float-end"></i>
-            </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
-                <li class="nav-item"><a class="nav-link" href="Sanpham.php"><i class="fas fa-cube"></i> Sản phẩm</a></li>
-                <li class="nav-item"><a class="nav-link" href="dmsp.php"><i class="fas fa-tags"></i> Danh mục sản phẩm</a></li>
-                <li class="nav-item"><a class="nav-link" href="Nhacungcap.php"><i class="fas fa-truck"></i> Nhà cung cấp</a></li>
-            </ul>
-        </li>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script>
+        const API = 'http://localhost:8000/api/v1';
+        const headers = { 'Authorization': 'Bearer ' + localStorage.getItem('token'), 'Content-Type': 'application/json' };
+        const urlParams = new URLSearchParams(window.location.search);
+        const receiptId = urlParams.get('id');
 
-        <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
-                <i class="fas fa-file-import"></i> Phiếu nhập kho
-                <i class="fas fa-chevron-down float-end"></i>
-            </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
-                <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-list"></i> Danh sách phiếu nhập</a></li>
-                <li class="nav-item"><a class="nav-link" href="phieu_nhap.php"><i class="fas fa-plus-circle"></i> Tạo phiếu nhập</a></li>
-            </ul>
-        </li>
+        let products = [];
 
-        <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                <i class="fas fa-file-export"></i> Phiếu xuất <!-- Đã sửa icon đúng -->
-                <i class="fas fa-chevron-down float-end"></i>
-            </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
-                <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-list"></i> Danh sách phiếu xuất</a></li>
-                <li class="nav-item"><a class="nav-link" href="phieu_xuat.php"><i class="fas fa-plus-circle"></i> Tạo phiếu xuất</a></li>
-            </ul>
-        </li>
+        async function init() {
+            if (!receiptId) return window.location.href = 'danh_sach_phieu_xuat.php';
+            
+            try {
+                const [resP, resK, resW] = await Promise.all([
+                    fetch(API + '/products', { headers }),
+                    fetch(API + '/customers', { headers }),
+                    fetch(API + '/warehouses', { headers })
+                ]);
 
-        <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
-                <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
-                <i class="fas fa-chevron-down float-end"></i>
-            </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao"> <!-- ĐÃ SỬA: thêm ul đúng id -->
-                <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
-            </ul>
-        </li>
+                const dataP = await resP.json();
+                const dataK = await resK.json();
+                const dataW = await resW.json();
 
-        <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
-                <i class="fas fa-users"></i> Quản lý khách hàng <!-- Đã sửa icon đúng -->
-                <i class="fas fa-chevron-down float-end"></i>
-            </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
-                <li class="nav-item"><a class="nav-link" href="khachhang.php"><i class="fas fa-user"></i> Khách hàng</a></li>
-                <li class="nav-item"><a class="nav-link" href="loaikhachhang.php"><i class="fas fa-users-cog"></i> Loại khách hàng</a></li>
-            </ul>
-        </li>
+                products = dataP.data.products;
+                
+                // Populate Customers
+                const selK = document.getElementById('Makh');
+                selK.innerHTML = '<option value="">-- Chọn Khách hàng --</option>';
+                dataK.data.customers.forEach(k => selK.innerHTML += `<option value="${k.Makh}">${k.Tenkh}</option>`);
 
-        <li class="nav-item">
-            <a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
-        </li>
-    </ul>
-</nav>
+                // Populate Warehouses
+                const selW = document.getElementById('Makho');
+                selW.innerHTML = '<option value="">-- Chọn Kho --</option>';
+                dataW.data.warehouses.forEach(w => selW.innerHTML += `<option value="${w.Makho}">${w.Tenkho}</option>`);
 
-<div class="main-content">
-    <div class="max-w-5xl mx-auto bg-white p-6 rounded-lg shadow">
-        <h2 class="text-2xl font-bold mb-4">Sửa Phiếu Xuất: <?= htmlspecialchars($maxuat_get) ?></h2>
+                // Load receipt data
+                const resR = await fetch(`${API}/export-receipts/${receiptId}`, { headers });
+                const dataR = await resR.json();
 
-        <?php if ($errors): ?>
-            <div class="alert alert-danger">
-                <?php foreach ($errors as $er) echo "• $er<br>"; ?>
-            </div>
-        <?php endif; ?>
+                if (dataR.success) {
+                    const r = dataR.data.receipt;
+                    document.getElementById('Maxuathang').value = r.Maxuathang;
+                    document.getElementById('Makh').value = r.Makh;
+                    document.getElementById('Makho').value = r.Makho || '';
+                    document.getElementById('Ngayxuat').value = r.Ngayxuat;
+                    document.getElementById('Ghichu').value = r.Ghichu || '';
 
-        <form method="post">
-            <div class="grid md:grid-cols-2 gap-4 mb-4">
-                <div>
-                    <label class="form-label font-bold">Mã xuất hàng</label>
-                    <input name="maxuathang" readonly class="form-control readonly-field" value="<?= htmlspecialchars($phieuXuat['Maxuathang']) ?>" />
-                </div>
-                <div>
-                    <label class="form-label font-bold text-primary">Chọn Kho để cập nhật tồn *</label>
-                    <select name="makho" required class="form-select border-primary">
-                        <option value="">-- Chọn kho hàng --</option>
-                        <?php foreach ($khos as $k): ?>
-                            <option value="<?= $k['Makho'] ?>" <?= ($phieuXuat['Makho'] == $k['Makho']) ? 'selected' : '' ?>><?= htmlspecialchars($k['Tenkho']) ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label font-bold">Khách hàng</label>
-                    <select name="makh" required class="form-select">
-                        <?php foreach ($khachhangs as $kh): ?>
-                            <option value="<?= $kh['Makh'] ?>" <?= ($phieuXuat['Makh'] == $kh['Makh']) ? 'selected' : '' ?>>
-                                <?= htmlspecialchars($kh['Tenkh']) ?>
-                            </option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label class="form-label font-bold">Ngày xuất</label>
-                    <input type="date" name="ngayxuat" required class="form-control" value="<?= $phieuXuat['Ngayxuat'] ?>" />
-                </div>
-            </div>
+                    const tbody = document.getElementById('detailList');
+                    tbody.innerHTML = '';
+                    r.details.forEach(it => addRow(it));
+                }
 
-            <div class="mb-4">
-                <label class="form-label font-bold">Ghi chú</label>
-                <textarea name="ghichu" rows="2" class="form-control"><?= htmlspecialchars($phieuXuat['Ghichu']) ?></textarea>
-            </div>
+            } catch (err) {
+                alert('Lỗi tải dữ liệu');
+            }
+        }
 
-            <div class="flex justify-between items-center mb-2">
-                <h5 class="font-bold">Chi tiết sản phẩm</h5>
-                <button type="button" onclick="addRow()" class="btn btn-sm btn-info text-white">+ Thêm dòng</button>
-            </div>
+        function addRow(data = null) {
+            const tbody = document.getElementById('detailList');
+            const tr = document.createElement('tr');
+            
+            let options = products.map(p => `<option value="${p.Masp}" ${data && data.Masp === p.Masp ? 'selected' : ''}>${p.Masp} - ${p.Tensp}</option>`).join('');
+            
+            tr.innerHTML = `
+                <td><select class="form-select select-sp">${options}</select></td>
+                <td><input type="number" class="form-control text-center input-sl" value="${data ? data.Soluong : 1}" min="1"></td>
+                <td><input type="number" class="form-control text-end input-dg" value="${data ? data.Dongiaxuat : 0}" step="0.01"></td>
+                <td class="text-center"><i class="fas fa-times-circle btn-remove" onclick="this.closest('tr').remove()"></i></td>
+            `;
+            tbody.appendChild(tr);
+        }
 
-            <table class="table table-bordered">
-                <thead class="table-light">
-                    <tr>
-                        <th>Sản phẩm</th>
-                        <th width="150">Số lượng</th>
-                        <th width="200">Đơn giá</th>
-                        <th width="50"></th>
-                    </tr>
-                </thead>
-                <tbody id="detail-rows">
-                    <?php foreach ($chiTietPhieuCu as $ct): ?>
-                    <tr>
-                        <td>
-                            <select name="masp[]" class="form-select">
-                                <?php foreach ($sanphams as $sp): ?>
-                                    <option value="<?= $sp['Masp'] ?>" <?= ($ct['Masp'] == $sp['Masp']) ? 'selected' : '' ?>>
-                                        <?= htmlspecialchars($sp['Tensp']) ?> (<?= $sp['Dvt'] ?>)
-                                    </option>
-                                <?php endforeach; ?>
-                            </select>
-                        </td>
-                        <td><input name="soluong[]" type="number" class="form-control" value="<?= $ct['Soluong'] ?>" /></td>
-                        <td><input name="dongia[]" type="number" step="0.01" class="form-control" value="<?= $ct['Dongiaxuat'] ?>" /></td>
-                        <td><button type="button" onclick="this.closest('tr').remove()" class="text-red-500">Xóa</button></td>
-                    </tr>
-                    <?php endforeach; ?>
-                </tbody>
-            </table>
+        async function submitEdit() {
+            const body = {
+                Makh: document.getElementById('Makh').value,
+                Makho: document.getElementById('Makho').value,
+                Ngayxuat: document.getElementById('Ngayxuat').value,
+                Ghichu: document.getElementById('Ghichu').value,
+                details: []
+            };
 
-            <div class="mt-4">
-                <button type="submit" class="btn btn-success px-5">Cập nhật phiếu xuất</button>
-                <a href="danh_sach_phieu_xuat.php" class="btn btn-secondary">Hủy bỏ</a>
-            </div>
-        </form>
-    </div>
-</div>
+            if (!body.Makh || !body.Makho || !body.Ngayxuat) return alert('Vui lòng nhập đủ thông tin!');
 
-<script>
-function addRow() {
-    const tbody = document.getElementById('detail-rows');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td>
-            <select name="masp[]" class="form-select">
-                <option value="">-- Chọn --</option>
-                <?php foreach ($sanphams as $sp): ?>
-                    <option value="<?= $sp['Masp'] ?>"><?= addslashes($sp['Tensp']) ?></option>
-                <?php endforeach; ?>
-            </select>
-        </td>
-        <td><input name="soluong[]" type="number" class="form-control" value="1" /></td>
-        <td><input name="dongia[]" type="number" step="0.01" class="form-control" value="0" /></td>
-        <td><button type="button" onclick="this.closest('tr').remove()" class="text-red-500">Xóa</button></td>
-    `;
-    tbody.appendChild(tr);
-}
- document.getElementById("btnSanPham").addEventListener("click", function () {
-        document.getElementById("submenuSanPham").classList.toggle("d-none");
-    });
+            document.querySelectorAll('#detailList tr').forEach(tr => {
+                body.details.push({
+                    Masp: tr.querySelector('.select-sp').value,
+                    Soluong: tr.querySelector('.input-sl').value,
+                    Dongiaxuat: tr.querySelector('.input-dg').value
+                });
+            });
 
-    // Phiếu nhập kho
-    document.getElementById("btnPhieuNhap").addEventListener("click", function () {
-        document.getElementById("submenuPhieuNhap").classList.toggle("d-none");
-    });
+            if (body.details.length === 0) return alert('Phải có ít nhất một sản phẩm!');
 
-    // Phiếu xuất
-    document.getElementById("btnPhieuXuat").addEventListener("click", function () {
-        document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
-    });
+            try {
+                const res = await fetch(`${API}/export-receipts/${receiptId}`, {
+                    method: 'PUT',
+                    headers,
+                    body: JSON.stringify(body)
+                });
+                const data = await res.json();
+                if (data.success) {
+                    alert('Cập nhật phiếu xuất thành công!');
+                    window.location.href = 'danh_sach_phieu_xuat.php';
+                } else {
+                    alert('Lỗi: ' + data.message);
+                }
+            } catch (err) { alert('Lỗi kết nối API'); }
+        }
 
-    // Báo cáo & Thống kê (giờ hoạt động)
-    document.getElementById("btnBaoCao").addEventListener("click", function () {
-        document.getElementById("submenuBaoCao").classList.toggle("d-none");
-    });
-
-    // QUẢN LÝ KHÁCH HÀNG (đã thêm đầy đủ toggle)
-    document.getElementById("btnKhachHang").addEventListener("click", function () {
-        document.getElementById("submenuKhachHang").classList.toggle("d-none");
-    });
-</script>
+        init();
+    </script>
 </body>
 </html>

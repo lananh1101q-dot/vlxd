@@ -1,575 +1,217 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-$errors = [];
-$success = '';
-
-// Lấy dữ liệu dropdown
-$nhacungcaps = $pdo->query("SELECT Mancc, Tenncc FROM Nhacungcap ORDER BY Tenncc")->fetchAll();
-$sanphams = $pdo->query("SELECT Manvl  AS Masp, Tennvl AS Tensp, Dvt FROM Nguyenvatlieu ORDER BY Tennvl")->fetchAll();
-$khos = $pdo->query("SELECT Makho, Tenkho FROM Kho ORDER BY Tenkho")->fetchAll();
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $manhap = trim($_POST['manhaphang'] ?? '');
-    $mancc = trim($_POST['mancc'] ?? '');
-    $makho = trim($_POST['makho'] ?? '');
-    $ngaynhap = $_POST['ngaynhap'] ?? '';
-    $ghichu = trim($_POST['ghichu'] ?? '');
-    $maspArr = $_POST['masp'] ?? [];
-    $soluongArr = $_POST['soluong'] ?? [];
-    $dongiaArr = $_POST['dongia'] ?? [];
-
-    if ($manhap === '' || $mancc === '' || $makho === '' || $ngaynhap === '') {
-        $errors[] = 'Vui lòng nhập đầy đủ Mã nhập, Nhà cung cấp, Kho, Ngày nhập.';
-    }
-
-    // Chuẩn hóa item
-    $items = [];
-    for ($i = 0; $i < count($maspArr); $i++) {
-        $masp = trim($maspArr[$i] ?? '');
-        $soluong = (int)($soluongArr[$i] ?? 0);
-        $dongia = (float)($dongiaArr[$i] ?? 0);
-        if ($masp === '' || $soluong <= 0 || $dongia <= 0) {
-            continue;
-        }
-        $items[] = [
-            'masp' => $masp,
-            'soluong' => $soluong,
-            'dongia' => $dongia,
-        ];
-    }
-
-    if (empty($items)) {
-        $errors[] = 'Cần ít nhất một dòng chi tiết hợp lệ.';
-    }
-
-    if (!$errors) {
-        try {
-            $pdo->beginTransaction();
-
-            // Tính tổng
-            $tong = 0;
-            foreach ($items as $it) {
-                $tong += $it['soluong'] * $it['dongia'];
-            }
-
-            $stmtPhieu = $pdo->prepare("INSERT INTO Phieunhap (Manhaphang, Mancc, Makho, Ngaynhaphang, Tongtiennhap, Ghichu) VALUES (:ma, :ncc, :makho, :ngay, :tong, :ghichu)");
-            $stmtPhieu->execute([
-                ':ma' => $manhap,
-                ':ncc' => $mancc,
-                ':makho' => $makho,
-                ':ngay' => $ngaynhap,
-                ':tong' => $tong,
-                ':ghichu' => $ghichu,
-            ]);
-
-            $stmtCt = $pdo->prepare("INSERT INTO Chitiet_Phieunhap (Manhaphang, Manvl, Soluong, Dongianhap) VALUES (:ma, :manvl, :sl, :dg)");
-            foreach ($items as $it) {
-                $stmtCt->execute([
-                    ':ma' => $manhap,
-                    ':manvl' => $it['masp'],
-                    ':sl' => $it['soluong'],
-                    ':dg' => $it['dongia'],
-                ]);
-                
-                // Cập nhật tồn kho: INSERT ... ON DUPLICATE KEY UPDATE
-                $stmtTonkho = $pdo->prepare("
-                    INSERT INTO Tonkho_nvl (Makho, Manvl, Soluongton) 
-                    VALUES (?, ?, ?)
-                    ON DUPLICATE KEY UPDATE Soluongton = Soluongton + VALUES(Soluongton)
-                ");
-                $stmtTonkho->execute([
-                    $makho,
-                    $it['masp'],
-                    $it['soluong']
-                ]);
-            }
-
-            $pdo->commit();
-            $success = 'Tạo phiếu nhập thành công và đã cập nhật tồn kho.';
-        } catch (Exception $e) {
-            $pdo->rollBack();
-            $errors[] = 'Lỗi khi lưu phiếu: ' . htmlspecialchars($e->getMessage());
-        }
-    }
-}
-?>
-<!doctype html>
+<!DOCTYPE html>
 <html lang="vi">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Phiếu nhập kho</title>
-  <script src="https://cdn.tailwindcss.com"></script>
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Tạo phiếu nhập kho - VLXD</title>
+    <script>const token=localStorage.getItem('token');if(!token)window.location.href='dangnhap.php';</script>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-       <style>
-        body { 
-            background-color: #f8f9fa; 
-            font-family: 'Segoe UI', sans-serif; 
-        }
-        
-        /* Sidebar */
-        .sidebar { 
-            background-color: #007bff; 
-            height: 100vh; 
-            position: fixed; 
-            width: 250px; 
-            color: white; 
-            padding-top: 20px; 
-            top: 0;
-            left: 0;
-            overflow-y: auto;
-        }
-        
-        .sidebar .nav-link {
-            color: white !important;
-            padding: 12px 20px;
-            border-radius: 5px;
-            margin: 4px 10px;
-            transition: all 0.3s ease;
-            font-weight: normal; /* Chữ bình thường mặc định */
-          
-        }
-        
-        /* CHỈ hover mới in đậm và nổi bật */
-        .sidebar .nav-link:hover {
-            background-color: #0069d9;    /* Nền xanh đậm hơn một chút */
-            font-weight: bold;            /* Chữ in đậm */
-            transform: translateX(8px);   /* Dịch nhẹ sang phải cho đẹp */
-        }
-        
-        /* Bỏ hoàn toàn style active - tất cả đều giống nhau */
-        .sidebar .nav-link.active {
-            background-color: transparent;
-            font-weight: normal;
-            transform: none;
-        }
-        
-        .main-content { 
-            margin-left: 250px; 
-            padding: 20px; 
-        }
-        @media (max-width: 768px) { 
-            .sidebar { 
-                width: 100%; 
-                height: auto; 
-                position: relative; 
-            } 
-            .main-content { 
-                margin-left: 0; 
-            } 
-        }
-         /* tránh ghi đè */
-        .d-none {
-            display: none !important;
-        }
-        #submenuSanPham {
-            transition: all 0.3s ease;
-        }
-        /* ===== ÉP DARK (TAILWIND) -> LIGHT (NỀN TRẮNG) ===== */
-
-/* Nền tổng */
-body {
-    background-color: #f8f9fa !important;
-}
-
-/* Nội dung chính */
-.main-content {
-    background-color: #f8f9fa !important;
-    color: #212529 !important;
-}
-
-/* Card / form / box */
-.bg-slate-800,
-.bg-slate-900 {
-    background-color: #ffffff !important;
-}
-
-/* Border */
-.border-slate-700,
-.border-slate-800 {
-    border-color: #dee2e6 !important;
-}
-
-/* Text Tailwind */
-.text-slate-200,
-.text-slate-300,
-.text-slate-400 {
-    color: #495057 !important;
-}
-
-/* Tiêu đề */
-h1, h2, h3, h4, h5 {
-    color: #212529 !important;
-}
-
-/* Input / select / textarea */
-input,
-select,
-textarea {
-    background-color: #ffffff !important;
-    color: #212529 !important;
-}
-
-/* Placeholder */
-input::placeholder,
-textarea::placeholder {
-    color: #6c757d !important;
-}
-
-/* Table */
-thead.bg-slate-900 {
-    background-color: #f1f3f5 !important;
-    color: #212529 !important;
-}
-
-tbody tr {
-    color: #212529 !important;
-}
-
-tbody tr:hover {
-    background-color: #f8f9fa !important;
-}
-
-/* Ghi chú */
-td.text-slate-400,
-p.text-slate-400 {
-    color: #6c757d !important;
-}
-
-/* Nút dashboard (nền slate) */
-.bg-slate-800.hover\:bg-slate-700:hover {
-    background-color: #e9ecef !important;
-    color: #212529 !important;
-}
-.canh-phai {
-    text-align: right;
-}
-
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        body{background:#f0f4f8;font-family:'Segoe UI',sans-serif}
+        .sidebar{background:linear-gradient(180deg,#1e3a5f,#0d2137);height:100vh;position:fixed;width:250px;color:white;padding-top:20px;top:0;left:0;overflow-y:auto;z-index:100}
+        .sidebar h4{font-size:1rem;font-weight:700;padding:0 20px 15px;border-bottom:1px solid rgba(255,255,255,.1)}
+        .sidebar .nav-link{color:rgba(255,255,255,.8)!important;padding:9px 18px;border-radius:6px;margin:2px 8px;transition:all .25s;font-size:.87rem}
+        .sidebar .nav-link:hover{background:rgba(255,255,255,.15)!important;color:#fff!important;transform:translateX(4px)}
+        .submenu{display:none}.submenu.open{display:block}
+        .main-content{margin-left:250px;padding:30px}
+        .page-header{background:linear-gradient(135deg,#1e3a5f,#2563eb);color:white;border-radius:12px;padding:24px 28px;margin-bottom:24px}
+        .card{border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+        .card-header-custom{background:linear-gradient(135deg,#f0f9ff,#e0f2fe);border-bottom:1px solid #bae6fd;padding:16px 20px;font-weight:700;color:#0c4a6e}
+        .detail-row{background:#fff;border-radius:8px;border:1px solid #e2e8f0;padding:12px;margin-bottom:8px}
+        .total-bar{background:linear-gradient(135deg,#ecfdf5,#d1fae5);border-radius:8px;padding:16px;margin-top:16px}
     </style>
 </head>
 <body>
-    <nav class="sidebar">
-        <div class="text-center mb-4">
-            <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
-          </div>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
-            </li>
-           <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
-                    <i class="fas fa-box"></i> Quản lý sản phẩm
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
+<nav class="sidebar">
+    <div class="text-center mb-3"><h4><i class="fas fa-warehouse me-2"></i>Quản Lý Kho</h4></div>
+    <ul class="nav flex-column">
+        <li><a class="nav-link" href="trangchu.php"><i class="fas fa-home me-2"></i>Trang Chủ</a></li>
+        <li>
+            <a class="nav-link" href="#" onclick="toggleMenu('menuNhap');event.preventDefault()" style="background:rgba(37,99,235,.3);color:#bfdbfe!important"><i class="fas fa-file-import me-2"></i>Phiếu nhập kho<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
+            <ul class="nav flex-column ms-3 submenu open" id="menuNhap">
+                <li><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-list me-2"></i>Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_nhap.php" style="color:#bfdbfe!important"><i class="fas fa-plus-circle me-2"></i>Tạo phiếu nhập</a></li>
+            </ul>
+        </li>
+        <li><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-file-export me-2"></i>Phiếu xuất</a></li>
+        <li><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php"><i class="fas fa-exchange-alt me-2"></i>Điều chuyển</a></li>
+        <li><a class="nav-link" href="tonkho.php"><i class="fas fa-chart-bar me-2"></i>Báo cáo tồn kho</a></li>
+        <li><a class="nav-link" href="khachhang.php"><i class="fas fa-users me-2"></i>Khách hàng</a></li>
+        <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+    </ul>
+</nav>
 
-                <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
-                    <li class="nav-item">
-                        <a class="nav-link" href="Sanpham.php">
-                            <i class="fas fa-cube"></i> Sản phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="dmsp.php">
-                            <i class="fas fa-tags"></i> Danh mục sản phẩm
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="Nhacungcap.php">
-                            <i class="fas fa-truck"></i> Nhà cung cấp
-                        </a>
-                    </li>
-                </ul>
-            </li>
-
-
-            <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
-                  <i class="fas fa-file-import"></i> Phiếu nhập kho
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-
-              <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
-                  <li class="nav-item">
-                      <a class="nav-link" href="danh_sach_phieu_nhap.php">
-                          <i class="fas fa-list"></i> Danh sách phiếu nhập
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="phieu_nhap.php">
-                          <i class="fas fa-plus-circle"></i> Tạo phiếu nhập
-                      </a>
-                  </li>
-              </ul>
-          </li>
-          <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                  <i class="fas fa-file-export"></i> Phiếu xuất
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-
-              <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
-                  <li class="nav-item">
-                      <a class="nav-link" href="danh_sach_phieu_xuat.php">
-                          <i class="fas fa-list"></i> Danh sách phiếu xuất
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="phieu_xuat.php">
-                          <i class="fas fa-plus-circle"></i> Tạo phiếu xuất
-                      </a>
-                  </li>
-              </ul>
-          </li>
-
-          <li class="nav-item">
-              <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
-                  <i class="fas fa-cogs"></i> Sản xuất
-                  <i class="fas fa-chevron-down float-end"></i>
-              </a>
-              <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
-                  <li class="nav-item">
-                      <a class="nav-link" href="danh_sach_lenh_san_xuat.php">
-                          <i class="fas fa-list"></i> Danh sách lệnh sản xuất
-                      </a>
-                  </li>
-                  <li class="nav-item">
-                      <a class="nav-link" href="lenh_san_xuat.php">
-                          <i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất
-                      </a>
-                  </li>
-              </ul>
-          </li>
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
-                    <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-
-            
-                    <li class="nav-item">
-                        <a class="nav-link" href="tonkho.php">
-                            <i class="fas fa-warehouse"></i> Báo cáo tồn kho
-                        </a>
-                    </li>
-                  
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="khachhang.php"><i class="fas fa-users"></i> Khách hàng</a>
-            </li>
-            <li class="nav-item">
-                <a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
-            </li>
-        </ul>
-    </nav>
-
-    <div class="main-content">
-  <div class="max-w-5xl mx-auto p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-bold">Phiếu nhập kho</h1>
-        <p class="text-slate-400 text-sm mt-1">Ghi nhận hàng nhập và chi tiết sản phẩm</p>
-      </div>
-      <div class="flex gap-2 text-sm">
-        <a href="dashboard.php" class="px-3 py-2 rounded bg-slate-800 hover:bg-slate-700">← Dashboard</a>
-        <a href="logout.php" class="px-3 py-2 rounded bg-red-600 hover:bg-red-700">Đăng xuất</a>
-      </div>
+<div class="main-content">
+    <div class="page-header">
+        <h1 class="mb-1" style="font-size:1.6rem"><i class="fas fa-file-import me-2"></i>Tạo phiếu nhập kho</h1>
+        <p class="mb-0 opacity-75">Ghi nhận NVL nhập và cập nhật tồn kho</p>
     </div>
 
-    <?php if ($errors): ?>
-      <div class="bg-red-900/60 border border-red-700 text-red-200 px-4 py-3 rounded">
-        <ul class="list-disc list-inside space-y-1">
-          <?php foreach ($errors as $er): ?>
-            <li><?= htmlspecialchars($er) ?></li>
-          <?php endforeach; ?>
-        </ul>
-      </div>
-    <?php endif; ?>
+    <div id="alertBox" class="alert d-none mb-3"></div>
 
-    <?php if ($success): ?>
-      <div class="bg-emerald-900/60 border border-emerald-700 text-emerald-100 px-4 py-3 rounded">
-        <?= htmlspecialchars($success) ?>
-      </div>
-    <?php endif; ?>
+    <div class="card">
+        <div class="card-header-custom">Thông tin phiếu nhập</div>
+        <div class="card-body">
+            <div class="row g-3 mb-3">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Mã nhập hàng *</label>
+                    <input class="form-control" id="fMa" placeholder="VD: PN2024001 (để trống sẽ tự tạo)">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Nhà cung cấp *</label>
+                    <select class="form-select" id="fNcc"><option value="">-- Chọn NCC --</option></select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Kho nhập *</label>
+                    <select class="form-select" id="fKho"><option value="">-- Chọn kho --</option></select>
+                </div>
+            </div>
+            <div class="row g-3 mb-4">
+                <div class="col-md-4">
+                    <label class="form-label fw-semibold">Ngày nhập *</label>
+                    <input type="date" class="form-control" id="fNgay">
+                </div>
+                <div class="col-md-8">
+                    <label class="form-label fw-semibold">Ghi chú</label>
+                    <input class="form-control" id="fGhichu" placeholder="Ghi chú (tuỳ chọn)">
+                </div>
+            </div>
 
-    <form method="post" class="bg-slate-800 rounded-lg p-5 space-y-4">
-      <div class="grid md:grid-cols-3 gap-4">
-        <div>
-          <label class="block text-sm text-slate-300 mb-2">Mã nhập hàng *</label>
-          <input name="manhaphang" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['manhaphang'] ?? '') ?>" />
-        </div>
-        <div class ="canh-phai">
-          <label class="block text-sm text-slate-300 mb-2">Nhà cung cấp *</label>
-          <select name="mancc" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
-            <option value="">-- Chọn --</option>
-            <?php foreach ($nhacungcaps as $ncc): ?>
-              <option value="<?= htmlspecialchars($ncc['Mancc']) ?>" <?= (($_POST['mancc'] ?? '') === $ncc['Mancc']) ? 'selected' : '' ?>>
-                <?= htmlspecialchars($ncc['Tenncc']) ?>
-              </option>
-            <?php endforeach; ?>
-          </select>
-        </div>
-        <div>
-          <label class="block text-sm text-slate-300 mb-2">Kho nhập *</label>
-          <select name="makho" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
-            <option value="">-- Chọn kho --</option>
-            <?php foreach ($khos as $kho): ?>
-              <option value="<?= htmlspecialchars($kho['Makho']) ?>" <?= (($_POST['makho'] ?? '') === $kho['Makho']) ? 'selected' : '' ?>>
-                <?= htmlspecialchars($kho['Tenkho']) ?> [<?= htmlspecialchars($kho['Makho']) ?>]
-              </option>
-            <?php endforeach; ?>
-          </select>
-          <?php if (empty($khos)): ?>
-            <p class="text-xs text-yellow-400 mt-1">Chưa có kho nào. Vui lòng tạo kho trước.</p>
-          <?php endif; ?>
-        </div>
-      </div>
-      <div class="grid md:grid-cols-1 gap-4">
-        <div>
-          <label class="block text-sm text-slate-300 mb-2">Ngày nhập *</label>
-          <input type="date" name="ngaynhap" required class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($_POST['ngaynhap'] ?? date('Y-m-d')) ?>" />
-        </div>
-      </div>
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="fw-bold text-primary mb-0"><i class="fas fa-list-ul me-1"></i>Chi tiết nguyên vật liệu</h6>
+                <button class="btn btn-sm btn-outline-primary" onclick="addRow()"><i class="fas fa-plus me-1"></i>Thêm dòng</button>
+            </div>
 
-      <div>
-        <label class="block text-sm text-slate-300 mb-2">Ghi chú</label>
-        <textarea name="ghichu" rows="3" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700"><?= htmlspecialchars($_POST['ghichu'] ?? '') ?></textarea>
-      </div>
+            <div id="detailContainer"></div>
 
-      <div class="space-y-2">
-        <div class="flex items-center justify-between">
-          <div class="text-slate-200 font-semibold">Chi tiết sản phẩm</div>
-          <button type="button" onclick="addRow()" class="px-3 py-1 rounded bg-sky-600 hover:bg-sky-700 text-sm font-semibold">+ Thêm dòng</button>
-        </div>
-        <div class="overflow-auto border border-slate-700 rounded">
-          <table class="min-w-full text-sm">
-            <thead class="bg-slate-900 text-slate-300">
-              <tr>
-                <th class="px-3 py-2 text-left">Sản phẩm</th>
-                <th class="px-3 py-2 text-left">Số lượng</th>
-                <th class="px-3 py-2 text-left">Đơn giá</th>
-                <th class="px-3 py-2"></th>
-              </tr>
-            </thead>
-            <tbody id="detail-rows">
-              <?php
-              $posted = isset($_POST['masp']) ? count($_POST['masp']) : 0;
-              $rowCount = max($posted, 1);
-              for ($i = 0; $i < $rowCount; $i++):
-                  $maspVal = $_POST['masp'][$i] ?? '';
-                  $slVal = $_POST['soluong'][$i] ?? '';
-                  $dgVal = $_POST['dongia'][$i] ?? '';
-              ?>
-              <tr class="border-t border-slate-800">
-                <td class="px-3 py-2">
-                  <select name="masp[]" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
-                    <option value="">-- Chọn --</option>
-                    <?php foreach ($sanphams as $sp): ?>
-                      <option value="<?= htmlspecialchars($sp['Masp']) ?>" <?= ($maspVal === $sp['Masp']) ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($sp['Tensp']) ?> (<?= htmlspecialchars($sp['Dvt']) ?>)
-                      </option>
-                    <?php endforeach; ?>
-                  </select>
-                </td>
-                <td class="px-3 py-2"><input name="soluong[]" type="number" min="1" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($slVal) ?>" /></td>
-                <td class="px-3 py-2"><input name="dongia[]" type="number" min="0" step="0.01" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" value="<?= htmlspecialchars($dgVal) ?>" /></td>
-                <td class="px-3 py-2 text-right"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-200">Xóa</button></td>
-              </tr>
-              <?php endfor; ?>
-            </tbody>
-          </table>
-        </div>
-      </div>
+            <div class="total-bar d-flex justify-content-between align-items-center">
+                <span class="fw-bold text-success">Tổng tiền:</span>
+                <span class="fw-bold fs-5 text-success" id="totalAmount">0 đ</span>
+            </div>
 
-      <div class="pt-2">
-        <button type="submit" class="w-full md:w-auto inline-flex items-center justify-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-slate-900 font-semibold px-5 py-3 rounded">
-          Lưu phiếu nhập
-        </button>
-      </div>
-    </form>
-  </div>
+            <div class="mt-4 d-flex gap-2">
+                <button class="btn btn-success fw-semibold px-4" onclick="submitReceipt()"><i class="fas fa-save me-2"></i>Lưu phiếu nhập</button>
+                <a href="danh_sach_phieu_nhap.php" class="btn btn-secondary">← Quay lại</a>
+            </div>
+        </div>
+    </div>
 </div>
 
 <script>
-  const optionTemplate = <?php
-    $options = '';
-    foreach ($sanphams as $sp) {
-      $label = htmlspecialchars($sp['Tensp'] . ' (' . $sp['Dvt'] . ')', ENT_QUOTES);
-      $val = htmlspecialchars($sp['Masp'], ENT_QUOTES);
-      $options .= "<option value=\\\"{$val}\\\">{$label}</option>";
+const API='http://localhost:8000/api/v1';
+const headers={'Authorization':'Bearer '+localStorage.getItem('token')};
+let materialsData=[];
+
+function toggleMenu(id){const m=document.getElementById(id);m.classList.toggle('open');}
+function showAlert(msg,type='success'){const a=document.getElementById('alertBox');a.className=`alert alert-${type}`;a.innerHTML=msg;a.classList.remove('d-none');if(type==='success')setTimeout(()=>a.classList.add('d-none'),4000);}
+function fmtMoney(n){return Number(n||0).toLocaleString('vi-VN')+' đ';}
+
+function calcTotal(){
+    let total=0;
+    document.querySelectorAll('.detail-row').forEach(row=>{
+        const sl=parseFloat(row.querySelector('.inp-sl').value||0);
+        const dg=parseFloat(row.querySelector('.inp-dg').value||0);
+        total+=sl*dg;
+    });
+    document.getElementById('totalAmount').textContent=fmtMoney(total);
+}
+
+function getMatOptions(){
+    return '<option value="">-- Chọn NVL --</option>'+materialsData.map(m=>`<option value="${m.Manvl}">${m.Tennvl} (${m.Dvt||''})</option>`).join('');
+}
+
+function addRow(){
+    const div=document.createElement('div');div.className='detail-row';
+    div.innerHTML=`
+        <div class="row g-2 align-items-end">
+            <div class="col-md-5">
+                <label class="form-label small fw-semibold mb-1">Nguyên vật liệu</label>
+                <select class="form-select form-select-sm inp-mat">${getMatOptions()}</select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label small fw-semibold mb-1">Số lượng</label>
+                <input type="number" min="1" class="form-control form-control-sm inp-sl" placeholder="0" oninput="calcTotal()">
+            </div>
+            <div class="col-md-3">
+                <label class="form-label small fw-semibold mb-1">Đơn giá (đ)</label>
+                <input type="number" min="0" class="form-control form-control-sm inp-dg" placeholder="0" oninput="calcTotal()">
+            </div>
+            <div class="col-md-2">
+                <button class="btn btn-sm btn-outline-danger w-100" onclick="removeRow(this)"><i class="fas fa-trash"></i> Xóa</button>
+            </div>
+        </div>`;
+    document.getElementById('detailContainer').appendChild(div);
+}
+
+function removeRow(btn){
+    btn.closest('.detail-row').remove();
+    calcTotal();
+    if(!document.querySelectorAll('.detail-row').length)addRow();
+}
+
+async function loadDropdowns(){
+    try{
+        const [resNcc,resKho,resMat]=await Promise.all([
+            fetch(API+'/suppliers',{headers}),
+            fetch(API+'/warehouses',{headers}),
+            fetch(API+'/materials',{headers})
+        ]);
+        const [dNcc,dKho,dMat]=await Promise.all([resNcc.json(),resKho.json(),resMat.json()]);
+        if(dNcc.success)dNcc.data.suppliers.forEach(s=>{document.getElementById('fNcc').innerHTML+=`<option value="${s.Mancc}">${s.Tenncc}</option>`;});
+        if(dKho.success)dKho.data.warehouses.forEach(k=>{document.getElementById('fKho').innerHTML+=`<option value="${k.Makho}">[${k.Makho}] ${k.Tenkho}</option>`;});
+        if(dMat.success){materialsData=dMat.data.materials;document.querySelectorAll('.inp-mat').forEach(s=>s.innerHTML=getMatOptions());}
+    }catch(e){showAlert('Lỗi tải dữ liệu: '+e.message,'danger');}
+}
+
+async function submitReceipt(){
+    const mancc=document.getElementById('fNcc').value;
+    const makho=document.getElementById('fKho').value;
+    const ngay=document.getElementById('fNgay').value;
+    if(!mancc||!makho||!ngay){showAlert('Vui lòng nhập đầy đủ NCC, Kho và Ngày nhập.','warning');return;}
+    const details=[];
+    document.querySelectorAll('.detail-row').forEach(row=>{
+        const manvl=row.querySelector('.inp-mat').value;
+        const sl=parseFloat(row.querySelector('.inp-sl').value||0);
+        const dg=parseFloat(row.querySelector('.inp-dg').value||0);
+        if(manvl&&sl>0)details.push({Manvl:manvl,Soluong:sl,Dongianhap:dg});
+    });
+    async function saveReceipt() {
+        if(items.length===0) return alert('Chưa có mặt hàng!');
+        const headers = getHeaders();
+        if(!headers) return;
+        
+        const payload = {
+            Manhaphang: document.getElementById('fMa').value,
+            Mancc: document.getElementById('fNcc').value,
+            Makho: document.getElementById('fKho').value,
+            Ngaynhaphang: document.getElementById('fNgay').value,
+            Ghichu: document.getElementById('fGhichu').value,
+            details: items
+        };
+        try {
+            const res = await fetch(API + '/import-receipts', {
+                method: 'POST',
+                headers: { ...headers, 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+            const data=await res.json();
+            if(data.success){showAlert(`<strong>Tạo phiếu nhập thành công!</strong> Mã phiếu: <code>${data.data.id}</code> &nbsp; <a href="danh_sach_phieu_nhap.php" class="btn btn-sm btn-success">← Về danh sách</a>`);document.getElementById('fMa').value='';document.getElementById('fGhichu').value='';document.getElementById('detailContainer').innerHTML='';addRow();calcTotal();}
+            else showAlert(data.message,'danger');
+        }catch(e){showAlert('Lỗi kết nối server','danger');}
     }
-    echo json_encode($options);
-  ?>;
-
-  function addRow() {
-    const tbody = document.getElementById('detail-rows');
-    const tr = document.createElement('tr');
-    tr.className = 'border-t border-slate-800';
-    tr.innerHTML = `
-      <td class="px-3 py-2">
-        <select name="masp[]" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700">
-          <option value="">-- Chọn --</option>
-          ${optionTemplate}
-        </select>
-      </td>
-      <td class="px-3 py-2"><input name="soluong[]" type="number" min="1" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" /></td>
-      <td class="px-3 py-2"><input name="dongia[]" type="number" min="0" step="0.01" class="w-full px-3 py-2 rounded bg-slate-900 border border-slate-700" /></td>
-      <td class="px-3 py-2 text-right"><button type="button" onclick="removeRow(this)" class="text-red-400 hover:text-red-200">Xóa</button></td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  function removeRow(btn) {
-    const tr = btn.closest('tr');
-    const tbody = tr.parentElement;
-    tbody.removeChild(tr);
-    if (tbody.children.length === 0) {
-      addRow();
-    }
-  }
-  
-document.getElementById("btnSanPham").addEventListener("click", function () {
-    const menu = document.getElementById("submenuSanPham");
-    menu.classList.toggle("d-none");
-    
-});
-document.getElementById("btnBaoCao").addEventListener("click", function () {
-    document.getElementById("submenuBaoCao").classList.toggle("d-none");
-});
-const btnPhieuNhap = document.getElementById("btnPhieuNhap");
-const submenuPhieuNhap = document.getElementById("submenuPhieuNhap");
-
-if (btnPhieuNhap) {
-    btnPhieuNhap.addEventListener("click", function () {
-        submenuPhieuNhap.classList.toggle("d-none");
-    });
-}
-const btnPhieuXuat = document.getElementById("btnPhieuXuat");
-const submenuPhieuXuat = document.getElementById("submenuPhieuXuat");
-
-if (btnPhieuXuat) {
-    btnPhieuXuat.addEventListener("click", function () {
-        submenuPhieuXuat.classList.toggle("d-none");
-    });
+    if(!details.length){showAlert('Vui lòng thêm ít nhất một NVL','warning');return;}
+    const payload={Manhaphang:document.getElementById('fMa').value||undefined,Mancc:mancc,Makho:makho,Ngaynhaphang:ngay,Ghichu:document.getElementById('fGhichu').value,details};
+    try{
+        const res=await fetch(API+'/import-receipts',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify(payload)});
+        const data=await res.json();
+        if(data.success){showAlert(`<strong>Tạo phiếu nhập thành công!</strong> Mã phiếu: <code>${data.data.id}</code> &nbsp; <a href="danh_sach_phieu_nhap.php" class="btn btn-sm btn-success">← Về danh sách</a>`);document.getElementById('fMa').value='';document.getElementById('fGhichu').value='';document.getElementById('detailContainer').innerHTML='';addRow();calcTotal();}
+        else showAlert(data.message,'danger');
+    }catch(e){showAlert('Lỗi kết nối server','danger');}
 }
 
-const btnSanXuat = document.getElementById("btnSanXuat");
-const submenuSanXuat = document.getElementById("submenuSanXuat");
-
-if (btnSanXuat) {
-    btnSanXuat.addEventListener("click", function () {
-        submenuSanXuat.classList.toggle("d-none");
-    });
-}
-
+document.getElementById('fNgay').valueAsDate=new Date();
+loadDropdowns();
+addRow();
 </script>
 </body>
 </html>

@@ -1,285 +1,105 @@
-<?php
-session_start();
-if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
-    exit;
-}
-require_once __DIR__ . '/db.php';
-
-$madieuchuyen = $_GET['id'] ?? '';
-if (!$madieuchuyen) {
-    header('Location: danh_sach_phieu_dieuchuyen.php');
-    exit;
-}
-
-// Lấy thông tin phiếu
-$stmt = $pdo->prepare("
-    SELECT p.*, kx.Tenkho AS TenKhoXuat, kn.Tenkho AS TenKhoNhap
-    FROM Phieudieuchuyen p
-    LEFT JOIN Kho kx ON p.Khoxuat = kx.Makho
-    LEFT JOIN Kho kn ON p.Khonhap = kn.Makho
-    WHERE p.Madieuchuyen = ?
-");
-$stmt->execute([$madieuchuyen]);
-$phieu = $stmt->fetch();
-if (!$phieu) {
-    header('Location: danh_sach_phieu_dieuchuyen.php');
-    exit;
-}
-
-// Lấy chi tiết sản phẩm
-$chitiet = $pdo->prepare("
-    SELECT c.*, s.Tensp, s.Dvt
-    FROM Chitiet_Phieudieuchuyen c
-    JOIN Sanpham s ON c.Masp = s.Masp
-    WHERE c.Madieuchuyen = ?
-");
-$chitiet->execute([$madieuchuyen]);
-$items = $chitiet->fetchAll();
-?>
-
 <!DOCTYPE html>
 <html lang="vi">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Chi tiết phiếu điều chuyển</title>
-    <script src="https://cdn.tailwindcss.com"></script>
+    <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    <title>Chi tiết phiếu điều chuyển - VLXD</title>
+    <script>const token=localStorage.getItem('token');if(!token)window.location.href='dangnhap.php';</script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
-        /* Sidebar */
-        .sidebar {
-            position: fixed;
-            left: 0;
-            top: 0;
-            height: 100%;
-            width: 250px;
-            background-color: #1f2937;
-            color: white;
-            padding-top: 20px;
-            overflow-y: auto;
-            z-index: 1000;
-        }
-        .sidebar .nav-link {
-            color: #d1d5db;
-            padding: 10px 20px;
-            text-decoration: none;
-            display: block;
-            border-radius: 5px;
-            margin: 5px 10px;
-            transition: background-color 0.3s;
-        }
-        .sidebar .nav-link:hover {
-            background-color: #374151;
-        }
-        .sidebar .nav-link.active {
-            background-color: #3b82f6;
-            color: white;
-        }
-        .main-content {
-            margin-left: 250px;
-            padding: 20px;
-        }
-        @media (max-width: 768px) {
-            .sidebar {
-                width: 100%;
-                height: auto;
-                position: relative;
-            }
-            .main-content {
-                margin-left: 0;
-            }
-        }
+        body{background:#f0f4f8;font-family:'Segoe UI',sans-serif}
+        .main-content{max-width:960px;margin:30px auto;padding:20px}
+        .page-header{background:linear-gradient(135deg,#0f766e,#14b8a6);color:white;border-radius:12px;padding:24px 28px;margin-bottom:24px}
+        .card{border:none;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.08)}
+        .info-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:20px}
+        .info-item{background:#f0fdf4;border-radius:8px;padding:12px 16px;border:1px solid #bbf7d0}
+        .info-label{font-size:.78rem;color:#047857;text-transform:uppercase;font-weight:700;margin-bottom:2px}
+        .info-value{font-size:1rem;font-weight:600;color:#1e293b}
+        .table th{background:#f0fdf4;color:#047857;font-size:.8rem;text-transform:uppercase;border-color:#bbf7d0}
+        .arrow-box{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2px solid #86efac;border-radius:10px;padding:14px 20px;display:flex;align-items:center;gap:16px;margin-bottom:20px}
+        .kho-badge{background:white;border:1px solid #bbf7d0;border-radius:8px;padding:8px 14px;font-weight:700;font-size:.9rem;color:#047857}
     </style>
 </head>
-<body class="bg-gray-100">
-    <nav class="sidebar">
-        <div class="text-center mb-4">
-            <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
+<body>
+<div class="main-content">
+    <div class="page-header d-flex justify-content-between align-items-center">
+        <div>
+            <h1 class="mb-1" style="font-size:1.5rem"><i class="fas fa-exchange-alt me-2"></i>Chi tiết phiếu điều chuyển</h1>
+            <p class="mb-0 opacity-75" id="subTitle">Đang tải...</p>
         </div>
-        <ul class="nav flex-column">
-            <li class="nav-item">
-                <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
-            </li>
+        <div class="d-flex gap-2">
+            <a href="danh_sach_phieu_dieuchuyen.php" class="btn btn-light btn-sm"><i class="fas fa-arrow-left me-1"></i>Danh sách</a>
+            <button class="btn btn-success btn-sm fw-semibold" id="btnThucHien" disabled onclick="executeTransfer()"><i class="fas fa-check me-1"></i>Thực hiện điều chuyển</button>
+        </div>
+    </div>
 
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
-                    <i class="fas fa-box"></i> Quản lý sản phẩm
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
-                    <li class="nav-item"><a class="nav-link" href="Sanpham.php"><i class="fas fa-cube"></i> Sản phẩm</a></li>
-                    <li class="nav-item"><a class="nav-link" href="dmsp.php"><i class="fas fa-tags"></i> Danh mục sản phẩm</a></li>
-                    <li class="nav-item"><a class="nav-link" href="Nhacungcap.php"><i class="fas fa-truck"></i> Nhà cung cấp</a></li>
-                </ul>
-            </li>
+    <div id="alertBox" class="alert d-none mb-3"></div>
 
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
-                    <i class="fas fa-file-import"></i> Phiếu nhập kho
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
-                    <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-list"></i> Danh sách phiếu nhập</a></li>
-                    <li class="nav-item"><a class="nav-link" href="phieu_nhap.php"><i class="fas fa-plus-circle"></i> Tạo phiếu nhập</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                    <i class="fas fa-file-export"></i> Phiếu xuất
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
-                    <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-list"></i> Danh sách phiếu xuất</a></li>
-                    <li class="nav-item"><a class="nav-link" href="phieu_xuat.php"><i class="fas fa-plus-circle"></i> Tạo phiếu xuất</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnDieuChuyen">
-                    <i class="fas fa-exchange-alt"></i> Điều chuyển
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuDieuChuyen">
-                    <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php"><i class="fas fa-list"></i> Danh sách phiếu điều chuyển</a></li>
-                    <li class="nav-item"><a class="nav-link" href="phieu_dieuchuyen.php"><i class="fas fa-plus-circle"></i> Tạo phiếu điều chuyển</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
-                    <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
-                    <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
-                    <i class="fas fa-users"></i> Quản lý khách hàng
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
-                    <li class="nav-item"><a class="nav-link" href="khachhang.php"><i class="fas fa-user"></i> Khách hàng</a></li>
-                    <li class="nav-item"><a class="nav-link" href="loaikhachhang.php"><i class="fas fa-users-cog"></i> Loại khách hàng</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
-                    <i class="fas fa-cogs"></i> Sản xuất
-                    <i class="fas fa-chevron-down float-end"></i>
-                </a>
-                <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
-                    <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
-                    <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
-                </ul>
-            </li>
-
-            <li class="nav-item">
-                <a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a>
-            </li>
-        </ul>
-    </nav>
-
-    <div class="main-content">
-        <div class="max-w-5xl mx-auto p-6 space-y-6">
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold">Chi tiết phiếu điều chuyển: <?= htmlspecialchars($phieu['Madieuchuyen']) ?></h1>
-                    <p class="text-slate-400 text-sm mt-1">Thông tin chi tiết phiếu điều chuyển</p>
-                </div>
-                <div class="flex gap-2 text-sm">
-                    <a href="danh_sach_phieu_dieuchuyen.php" class="px-4 py-2 rounded bg-slate-600 hover:bg-slate-700 font-semibold">← Danh sách phiếu</a>
-                    <a href="thuc_hien_dieuchuyen.php?id=<?= urlencode($madieuchuyen) ?>" class="px-4 py-2 rounded bg-green-600 hover:bg-green-700 font-semibold">Thực hiện điều chuyển</a>
-                </div>
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="arrow-box" id="arrowBox">
+                <span class="text-muted small">Đang tải...</span>
             </div>
-
-            <div class="bg-slate-800 rounded-lg p-5 space-y-4">
-                <div class="grid md:grid-cols-2 gap-4">
-                    <div>
-                        <label class="block text-sm text-slate-300 mb-2">Mã phiếu</label>
-                        <p class="text-slate-200 font-semibold"><?= htmlspecialchars($phieu['Madieuchuyen']) ?></p>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-300 mb-2">Ngày điều chuyển</label>
-                        <p class="text-slate-200 font-semibold"><?= htmlspecialchars(date('d/m/Y', strtotime($phieu['Ngaydieuchuyen']))) ?></p>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-300 mb-2">Kho xuất</label>
-                        <p class="text-slate-200 font-semibold"><?= htmlspecialchars($phieu['TenKhoXuat']) ?></p>
-                    </div>
-                    <div>
-                        <label class="block text-sm text-slate-300 mb-2">Kho nhập</label>
-                        <p class="text-slate-200 font-semibold"><?= htmlspecialchars($phieu['TenKhoNhap']) ?></p>
-                    </div>
-                </div>
-                <div>
-                    <label class="block text-sm text-slate-300 mb-2">Ghi chú</label>
-                    <p class="text-slate-200"><?= htmlspecialchars($phieu['Ghichu'] ?: 'Không có') ?></p>
-                </div>
-            </div>
-
-            <div class="bg-slate-800 rounded-lg overflow-hidden">
-                <h3 class="text-lg font-semibold text-slate-200 p-5 pb-0">Chi tiết sản phẩm</h3>
-                <table class="w-full text-sm">
-                    <thead class="bg-slate-700">
-                        <tr>
-                            <th class="px-4 py-3 text-left text-slate-300">Mã SP</th>
-                            <th class="px-4 py-3 text-left text-slate-300">Tên sản phẩm</th>
-                            <th class="px-4 py-3 text-left text-slate-300">ĐVT</th>
-                            <th class="px-4 py-3 text-right text-slate-300">Số lượng</th>
-                        </tr>
-                    </thead>
-                    <tbody class="divide-y divide-slate-600">
-                        <?php if (empty($items)): ?>
-                            <tr>
-                                <td colspan="4" class="px-4 py-8 text-center text-slate-400">
-                                    Không có sản phẩm nào.
-                                </td>
-                            </tr>
-                        <?php else: ?>
-                            <?php foreach ($items as $item): ?>
-                                <tr class="hover:bg-slate-700/50">
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($item['Masp']) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($item['Tensp']) ?></td>
-                                    <td class="px-4 py-3 text-slate-200"><?= htmlspecialchars($item['Dvt']) ?></td>
-                                    <td class="px-4 py-3 text-right text-slate-200"><?= htmlspecialchars(number_format($item['Soluong'], 2)) ?></td>
-                                </tr>
-                            <?php endforeach; ?>
-                        <?php endif; ?>
-                    </tbody>
+            <div class="info-grid" id="infoGrid"></div>
+            <h6 class="fw-bold text-success mb-3"><i class="fas fa-boxes-stacked me-1"></i>Sản phẩm điều chuyển</h6>
+            <div class="table-responsive">
+                <table class="table table-hover mb-0">
+                    <thead><tr><th>Mã SP</th><th>Tên sản phẩm</th><th>ĐVT</th><th class="text-end">Số lượng</th></tr></thead>
+                    <tbody id="tbody"><tr><td colspan="4" class="text-center py-3 text-muted">Đang tải...</td></tr></tbody>
                 </table>
             </div>
         </div>
     </div>
+</div>
 
-    <script>
-        // Toggle submenus
-        document.getElementById("btnSanPham").addEventListener("click", function () {
-            document.getElementById("submenuSanPham").classList.toggle("d-none");
-        });
-        document.getElementById("btnPhieuNhap").addEventListener("click", function () {
-            document.getElementById("submenuPhieuNhap").classList.toggle("d-none");
-        });
-        document.getElementById("btnPhieuXuat").addEventListener("click", function () {
-            document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
-        });
-        document.getElementById("btnDieuChuyen").addEventListener("click", function () {
-            document.getElementById("submenuDieuChuyen").classList.toggle("d-none");
-        });
-        document.getElementById("btnBaoCao").addEventListener("click", function () {
-            document.getElementById("submenuBaoCao").classList.toggle("d-none");
-        });
-        document.getElementById("btnKhachHang").addEventListener("click", function () {
-            document.getElementById("submenuKhachHang").classList.toggle("d-none");
-        });
-        document.getElementById("btnSanXuat").addEventListener("click", function () {
-            document.getElementById("submenuSanXuat").classList.toggle("d-none");
-        });
-    </script>
+<script>
+const API='http://localhost:8000/api/v1';
+const headers={'Authorization':'Bearer '+localStorage.getItem('token')};
+const id=new URLSearchParams(location.search).get('id');
+function fmtDate(s){if(!s)return'—';return new Date(s).toLocaleDateString('vi-VN');}
+function showAlert(msg,type='success'){const a=document.getElementById('alertBox');a.className=`alert alert-${type}`;a.innerHTML=msg;a.classList.remove('d-none');}
+
+async function load(){
+    if(!id){showAlert('Không có mã phiếu điều chuyển','danger');return;}
+    try{
+        const res=await fetch(API+'/transfers/'+encodeURIComponent(id),{headers});
+        const data=await res.json();
+        if(!data.success)throw new Error(data.message);
+        const r=data.data.transfer;
+        document.getElementById('subTitle').textContent='Phiếu: '+r.Madieuchuyen;
+        document.getElementById('arrowBox').innerHTML=`
+            <div class="kho-badge"><i class="fas fa-store-alt me-1"></i>${r.TenKhoXuat||r.Khoxuat}</div>
+            <div class="text-center flex-grow-1"><i class="fas fa-arrow-right fa-2x text-success"></i><div class="small text-muted mt-1">${fmtDate(r.Ngaydieuchuyen)}</div></div>
+            <div class="kho-badge"><i class="fas fa-store me-1"></i>${r.TenKhoNhap||r.Khonhap}</div>`;
+        document.getElementById('infoGrid').innerHTML=`
+            <div class="info-item"><div class="info-label">Mã phiếu</div><div class="info-value">${r.Madieuchuyen}</div></div>
+            <div class="info-item"><div class="info-label">Ngày điều chuyển</div><div class="info-value">${fmtDate(r.Ngaydieuchuyen)}</div></div>
+            <div class="info-item"><div class="info-label">Kho xuất</div><div class="info-value">${r.TenKhoXuat||r.Khoxuat}</div></div>
+            <div class="info-item"><div class="info-label">Kho nhập</div><div class="info-value">${r.TenKhoNhap||r.Khonhap}</div></div>
+            <div class="info-item" style="grid-column:1/-1"><div class="info-label">Ghi chú</div><div class="info-value">${r.Ghichu||'—'}</div></div>`;
+        const details=r.details||[];
+        if(!details.length){document.getElementById('tbody').innerHTML='<tr><td colspan="4" class="text-center text-muted py-3">Không có chi tiết</td></tr>';return;}
+        document.getElementById('tbody').innerHTML=details.map(d=>`<tr>
+            <td><code>${d.Masp}</code></td>
+            <td>${d.Tensp||'—'}</td>
+            <td>${d.Dvt||'—'}</td>
+            <td class="text-end fw-bold">${Number(d.Soluong||0).toLocaleString('vi-VN')}</td>
+        </tr>`).join('');
+        if(r.Trangthai!=='da_thuc_hien'){document.getElementById('btnThucHien').disabled=false;}
+        else{document.getElementById('btnThucHien').textContent='Đã thực hiện';document.getElementById('btnThucHien').className='btn btn-sm btn-secondary';}
+    }catch(e){showAlert('Lỗi: '+e.message,'danger');}
+}
+
+async function executeTransfer(){
+    if(!confirm('Xác nhận thực hiện điều chuyển?\nTồn kho sẽ được cập nhật tự động.'))return;
+    try{
+        const res=await fetch(API+'/transfers/'+encodeURIComponent(id)+'/execute',{method:'POST',headers:{...headers,'Content-Type':'application/json'}});
+        const data=await res.json();
+        if(data.success){showAlert('<strong>Điều chuyển thành công!</strong> Tồn kho đã được cập nhật.');document.getElementById('btnThucHien').disabled=true;document.getElementById('btnThucHien').textContent='Đã thực hiện';}
+        else showAlert(data.message,'danger');
+    }catch(e){showAlert('Lỗi kết nối','danger');}
+}
+load();
+</script>
 </body>
 </html>
