@@ -6,15 +6,20 @@ if (!isset($_SESSION['user'])) {
 }
 $user = $_SESSION['user'];
 require_once __DIR__ . '/db.php';
-// Tổng số sản phẩm
+
+// Tổng số sản phẩm (Sản phẩm thành phẩm)
 $totalProducts = $pdo->query("SELECT COUNT(*) FROM Sanpham")->fetchColumn();
-// Tổng tồn kho (tổng số lượng tồn của tất cả sản phẩm ở tất cả kho)
-$totalStock = $pdo->query("SELECT SUM(Soluongton) FROM Tonkho")->fetchColumn();
-// Số đơn nhập hôm nay
+
+// SỬA LỖI TẠI ĐÂY: Tính tổng tồn kho bằng cách cộng tồn kho NVL và tồn kho Sản phẩm
+$totalStockNVL = $pdo->query("SELECT SUM(Soluongton) FROM Tonkho_nvl")->fetchColumn() ?: 0;
+$totalStockSP = $pdo->query("SELECT SUM(Soluongton) FROM Tonkho_sp")->fetchColumn() ?: 0;
+$totalStock = $totalStockNVL + $totalStockSP;
+
+// Số đơn nhập nguyên vật liệu hôm nay
 $today = date('Y-m-d');
-$totalOrdersToday = $pdo->prepare("SELECT COUNT(*) FROM Phieunhap WHERE Ngaynhaphang = ?");
-$totalOrdersToday->execute([$today]);
-$totalOrdersToday = $totalOrdersToday->fetchColumn();
+$totalOrdersTodayStmt = $pdo->prepare("SELECT COUNT(*) FROM Phieunhap WHERE Ngaynhaphang = ?");
+$totalOrdersTodayStmt->execute([$today]);
+$totalOrdersToday = $totalOrdersTodayStmt->fetchColumn();
 ?>
 <!doctype html>
 <html lang="vi">

@@ -41,7 +41,7 @@ if (isset($_POST['btnluu'])) {
                     WHERE Mancc='$Mancc'";
 
             if (mysqli_query($conn, $sql)) {
-                echo "<script>alert('thông cong!'); window.location.href='Nhacungcap.php';</script>";
+                echo "<script>alert('Thành công!'); window.location.href='Nhacungcap.php';</script>";
                 
             } else {
                 echo "<script>alert('Lỗi thêm sản phẩm!');</script>";

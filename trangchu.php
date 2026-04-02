@@ -165,6 +165,17 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
 
         <!-- Tất cả đều xem được -->
         <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
+                <i class="fas fa-cogs"></i> Sản xuất
+                <i class="fas fa-chevron-down float-end"></i>
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
+                <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
+                <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
+            </ul>
+        </li>
+
+        <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
                 <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
                 <i class="fas fa-chevron-down float-end"></i>
@@ -201,7 +212,6 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
         </div>
     </div>
 
-    <!-- Phần chào mừng mới: chữ lớn, đẹp, ở giữa màn hình -->
     <div class="text-center mt-5 pt-5">
         <h1 class="display-3 fw-bold text-primary mb-4">
             <i class="fas fa-warehouse me-3"></i>
@@ -242,12 +252,17 @@ $page_title = "Trang Chủ - Quản Lý Kho Hàng";
         document.getElementById("submenuPhieuXuat").classList.toggle("d-none");
     });
 
-    // Báo cáo & Thống kê (giờ hoạt động)
+    // SẢN XUẤT (Kịch bản JS mới thêm vào)
+    document.getElementById("btnSanXuat").addEventListener("click", function () {
+        document.getElementById("submenuSanXuat").classList.toggle("d-none");
+    });
+
+    // Báo cáo & Thống kê
     document.getElementById("btnBaoCao").addEventListener("click", function () {
         document.getElementById("submenuBaoCao").classList.toggle("d-none");
     });
 
-    // QUẢN LÝ KHÁCH HÀNG (đã thêm đầy đủ toggle)
+    // QUẢN LÝ KHÁCH HÀNG
     document.getElementById("btnKhachHang").addEventListener("click", function () {
         document.getElementById("submenuKhachHang").classList.toggle("d-none");
     });

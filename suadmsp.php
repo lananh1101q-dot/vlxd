@@ -225,7 +225,7 @@ mysqli_close($conn);
                     <button type="submit" name="btnLuuSua" class="btn btn-save">Lưu thay đổi</button>
        
                   
-                    <a href="/quanlykho/dmsp.php" class="nut nut-phu">Quay lại</a>
+                   <a href="dmsp.php" class="nut nut-phu">Quay lại</a>
                 </div>
             </form>
         </div>

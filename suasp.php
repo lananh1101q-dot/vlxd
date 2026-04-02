@@ -42,7 +42,7 @@ if (isset($_POST['btnluu'])) {
                     WHERE Masp='$Masp'";
 
             if (mysqli_query($conn, $sql)) {
-                echo "<script>alert('thông cong!'); window.location.href='Sanpham.php';</script>";
+                echo "<script>alert('Thành công!'); window.location.href='Sanpham.php';</script>";
                 
             } else {
                 echo "<script>alert('Lỗi thêm sản phẩm!');</script>";

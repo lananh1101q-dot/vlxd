@@ -122,7 +122,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 </head>
 <body>
 
-    <nav class="sidebar">
+   <nav class="sidebar">
     <div class="text-center mb-4">
         <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
     </div>
@@ -156,7 +156,7 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
-                <i class="fas fa-file-export"></i> Phiếu xuất <!-- Đã sửa icon đúng -->
+                <i class="fas fa-file-export"></i> Phiếu xuất
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
@@ -166,18 +166,29 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST') {
         </li>
 
         <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
+                <i class="fas fa-cogs"></i> Sản xuất
+                <i class="fas fa-chevron-down float-end"></i>
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
+                <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
+                <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
+            </ul>
+        </li>
+
+        <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
                 <i class="fas fa-chart-bar"></i> Báo cáo & Thống kê
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
-            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao"> <!-- ĐÃ SỬA: thêm ul đúng id -->
+            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
                 <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
             </ul>
         </li>
 
         <li class="nav-item">
             <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
-                <i class="fas fa-users"></i> Quản lý khách hàng <!-- Đã sửa icon đúng -->
+                <i class="fas fa-users"></i> Quản lý khách hàng
                 <i class="fas fa-chevron-down float-end"></i>
             </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
