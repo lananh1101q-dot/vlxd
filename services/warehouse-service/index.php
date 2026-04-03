@@ -324,7 +324,7 @@ try {
                     }
                 }
 
-                $stmt = $pdo->prepare("INSERT INTO Phieuxuat (Maxuathang, Makh, Makho, Ngayxuat, Tongtienxuat, Ghichu, Trangthai) VALUES (?, ?, ?, ?, ?, ?, 'hoan_thanh')");
+                $stmt = $pdo->prepare("INSERT INTO Phieuxuat (Maxuathang, Makh, Makho, Ngayxuat, Tongtienxuat, Ghichu) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$mapx, $makh, $makho, $ngay, $tongTien, $ghichu]);
 
                 foreach ($details as $d) {
