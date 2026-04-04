@@ -107,7 +107,7 @@ try {
                 foreach ($details as $d) {
                     $tongTien += ($d['Soluong'] ?? 0) * ($d['Dongianhap'] ?? 0);
                 }
-                $stmt = $pdo->prepare("INSERT INTO Phieunhap (Manhaphang, Mancc, Makho, Ngaynhaphang, Tongtiennhap, Ghichu, Trangthai) VALUES (?, ?, ?, ?, ?, ?, 'hoan_thanh')");
+                $stmt = $pdo->prepare("INSERT INTO Phieunhap (Manhaphang, Mancc, Makho, Ngaynhaphang, Tongtiennhap, Ghichu) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$maPN, $mancc, $makho, $ngay, $tongTien, $ghichu]);
 
                 $stmtDet = $pdo->prepare("INSERT INTO Chitiet_Phieunhap (Manhaphang, Manvl, Soluong, Dongianhap) VALUES (?, ?, ?, ?)");
@@ -324,7 +324,7 @@ try {
                     }
                 }
 
-                $stmt = $pdo->prepare("INSERT INTO Phieuxuat (Maxuathang, Makh, Makho, Ngayxuat, Tongtienxuat, Ghichu, Trangthai) VALUES (?, ?, ?, ?, ?, ?, 'hoan_thanh')");
+                $stmt = $pdo->prepare("INSERT INTO Phieuxuat (Maxuathang, Makh, Makho, Ngayxuat, Tongtienxuat, Ghichu) VALUES (?, ?, ?, ?, ?, ?)");
                 $stmt->execute([$mapx, $makh, $makho, $ngay, $tongTien, $ghichu]);
 
                 foreach ($details as $d) {
