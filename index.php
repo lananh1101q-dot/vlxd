@@ -28,6 +28,10 @@ if (isset($_GET['page'])) {
     $path = trim($requestUri, '/');
     if (!empty($path)) {
         $page = explode('/', $path)[0];
+    } else {
+        // Root URL "/" → redirect to login
+        header('Location: /dangnhap');
+        exit;
     }
 }
 
