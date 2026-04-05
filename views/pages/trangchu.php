@@ -30,7 +30,7 @@
                 const mapping = {
                     'admin': 'Quản trị viên - Toàn quyền hệ thống',
                     'staff': 'Nhân viên - Quản lý nghiệp vụ',
-                    'guest': 'Khách - Chỉ xem dữ liệu'
+                    
                 };
                 const role = payload.Vaitro || 'guest';
                 document.getElementById('roleInfo').innerHTML = `

@@ -50,44 +50,64 @@
   </div>
 
 <script>
-  document.getElementById('loginForm').addEventListener('submit', async function(e) {
+document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-    const u = document.getElementById('username').value;
-    const p = document.getElementById('password').value;
+
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value.trim();
     const errorDiv = document.getElementById('errorMsg');
-    
+
     errorDiv.classList.add('hidden');
-    
+
+    // ❗ kiểm tra rỗng
+    if (!u || !p) {
+        errorDiv.textContent = "Vui lòng nhập đầy đủ thông tin!";
+        errorDiv.classList.remove('hidden');
+        return;
+    }
+
     try {
         const response = await fetch('http://localhost:8000/api/v1/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ Tendangnhap: u, Matkhau: p })
+            body: JSON.stringify({ 
+                Tendangnhap: u, 
+                Matkhau: p 
+            })
         });
+
         const result = await response.json();
-        
+
+        // ❗ nếu login thành công
         if (result.success) {
-            localStorage.setItem('token', result.data.token);
-            localStorage.setItem('user', JSON.stringify(result.data.user));
-            
-            const vaitro = result.data.user.Vaitro.toLowerCase();
-            
-            if (vaitro === 'admin') {
-                alert("Chào Admin!");
-                window.location.href = 'trangchu.php';
-            } else {
-                alert("Chào Nhân viên!");
-                window.location.href = 'trangchu.php';
-            }
-        } else {
-            errorDiv.textContent = result.message;
+    const user = result.data.user;
+
+    // 🔥 THÊM DÒNG NÀY
+    localStorage.setItem('token', result.data.token);
+
+    // Gửi session
+    const formData = new FormData();
+    formData.append("user", JSON.stringify(user));
+
+    await fetch("set_session.php", {
+        method: "POST",
+        body: formData,
+        credentials: "same-origin"
+    });
+
+    window.location.href = "trangchu.php";
+}
+        // ❗ nếu sai tài khoản
+        else {
+            errorDiv.textContent = result.message || "Sai tài khoản hoặc mật khẩu!";
             errorDiv.classList.remove('hidden');
         }
+
     } catch (error) {
-        errorDiv.textContent = 'Lỗi kết nối API Gateway (Port 8000).';
+        errorDiv.textContent = "Không kết nối được server (API 8000)";
         errorDiv.classList.remove('hidden');
     }
-  });
+});
 </script>
 </body>
 </html>

@@ -1,3 +1,33 @@
+<?php
+session_start();
+require_once __DIR__ . '/role_helper.php';
+
+// 1. Kiểm tra bảo mật: Nếu chưa đăng nhập thì bắt quay lại trang dangnhap.php
+if (!isset($_SESSION['user'])) {
+    header("Location: dangnhap.php");
+    exit;
+}
+if (!isset($_SESSION['user'])) {
+    header("Location: dangnhap.php");
+    exit;
+}
+
+$role = $_SESSION['user']['role'] ?? 'guest';//
+
+// PHÂN QUYỀN MENU
+$menus = [
+    'admin' => ['all' => true],
+    'staff' => ['phieunhap'=>true,'phieuxuat'=>true,'khachhang'=>true,'baocao'=>true,'sanpham'=>true],
+    'sanxuat' => ['sanxuat'=>true,'baocao'=>true]
+];
+
+$permission = $menus[$role] ?? [];
+
+// Lấy thông tin người dùng từ Session để hiển thị
+$user = $_SESSION['user'];
+$role = $user['role'] ?? 'guest';
+$roleName = getRoleName($role);
+?>
 <!DOCTYPE html>
 <html lang="vi">
 <head>
@@ -23,21 +53,120 @@
 </head>
 <body>
 <nav class="sidebar">
-    <div class="text-center mb-3"><h4><i class="fas fa-warehouse me-2"></i>Quản Lý Kho</h4></div>
+    <div class="text-center mb-4">
+        <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
+        <div style="font-size: 0.85rem; margin-top: 10px; padding: 10px; background-color: rgba(255,255,255,0.1); border-radius: 5px;">
+            <div><strong><?= htmlspecialchars($user['fullname'] ?? $user['username']) ?></strong></div>
+            <div style="font-size: 0.75rem; margin-top: 5px;">
+                <i class="fas fa-user-circle"></i> <?= $role ?>
+            </div>
+        </div>
+    </div>
+
     <ul class="nav flex-column">
-        <li><a class="nav-link" href="trangchu.php"><i class="fas fa-home me-2"></i>Trang Chủ</a></li>
-        <li><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-file-import me-2"></i>Phiếu nhập kho</a></li>
-        <li><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-file-export me-2"></i>Phiếu xuất</a></li>
-        <li><a class="nav-link" href="tonkho.php"><i class="fas fa-chart-bar me-2"></i>Báo cáo tồn kho</a></li>
-        <li><a class="nav-link" href="khachhang.php"><i class="fas fa-users me-2"></i>Khách hàng</a></li>
-        <li>
-            <a class="nav-link" href="#" onclick="toggleMenu('menuSX');event.preventDefault()" style="background:rgba(124,58,237,.3);color:#ddd6fe!important"><i class="fas fa-cogs me-2"></i>Sản xuất<i class="fas fa-chevron-down float-end mt-1" style="font-size:.7rem"></i></a>
-            <ul class="nav flex-column ms-3 submenu open" id="menuSX">
-                <li><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list me-2"></i>Danh sách lệnh SX</a></li>
-                <li><a class="nav-link" href="lenh_san_xuat.php" style="color:#ddd6fe!important"><i class="fas fa-plus-circle me-2"></i>Tạo lệnh SX</a></li>
+
+        <!-- Trang chủ -->
+        <li class="nav-item">
+            <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
+        </li>
+
+        <!-- SẢN PHẨM -->
+        <?php if (!empty($permission['sanpham']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
+                <i class="fas fa-box"></i> Quản lý sản phẩm
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
+                <li><a class="nav-link" href="Sanpham.php">Sản phẩm</a></li>
+                <li><a class="nav-link" href="dmsp.php">Danh mục</a></li>
+                <li><a class="nav-link" href="Nhacungcap.php">Nhà cung cấp</a></li>
             </ul>
         </li>
-        <li><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt me-2"></i>Đăng xuất</a></li>
+        <?php endif; ?>
+
+        <!-- PHIẾU NHẬP -->
+        <?php if (!empty($permission['phieunhap']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
+                <i class="fas fa-file-import"></i> Phiếu nhập
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
+                <li><a class="nav-link" href="danh_sach_phieu_nhap.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_nhap.php">Tạo phiếu</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+   <!-- PHIẾU xuất -->
+        <?php if (!empty($permission['phieuxuat']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
+                <i class="fas fa-file-import"></i> Phiếu xuất
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
+                <li><a class="nav-link" href="danh_sach_phieu_xuat.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_xuat.php">Tạo phiếu</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+        <!-- PHIẾU điều chuyển -->
+        <?php if (!empty($permission['phieudc']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieudc">
+                <i class="fas fa-file-export"></i> Phiếu điều chuyển
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuPhieudc">
+                <li><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_dieuchuyen.php">Tạo phiếu</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+     
+
+        <!-- SẢN XUẤT -->
+        <?php if (!empty($permission['sanxuat']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
+                <i class="fas fa-cogs"></i> Sản xuất
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
+                <li><a class="nav-link" href="danh_sach_lenh_san_xuat.php">Danh sách</a></li>
+                <li><a class="nav-link" href="lenh_san_xuat.php">Tạo lệnh</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+
+        <!-- BÁO CÁO -->
+        <?php if (!empty($permission['baocao']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
+                <i class="fas fa-chart-bar"></i> Báo cáo
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
+                <li><a class="nav-link" href="tonkho.php">Tồn kho</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+
+        <!-- KHÁCH HÀNG -->
+        <?php if (!empty($permission['khachhang']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
+                <i class="fas fa-users"></i> Khách hàng
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
+                <li><a class="nav-link" href="khachhang.php">Khách hàng</a></li>
+                <li><a class="nav-link" href="loaikhachhang.php">Loại KH</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+
+        <!-- LOGOUT -->
+        <li class="nav-item mt-4 pt-3 border-top">
+            <a class="nav-link text-danger" href="logout.php">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </a>
+        </li>
+
     </ul>
 </nav>
 
@@ -106,7 +235,29 @@
 <script>
 const API='http://localhost:8000/api/v1';
 const headers={'Authorization':'Bearer '+localStorage.getItem('token')};
+document.addEventListener("DOMContentLoaded", function () {
 
+    function toggleMenu(btnId, subId) {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(subId);
+
+        if (btn && sub) {
+            btn.addEventListener("click", function () {
+                sub.classList.toggle("d-none");
+            });
+        }
+    }
+
+    // GỌI CHO TẤT CẢ MENU
+    toggleMenu("btnSanPham", "submenuSanPham");
+    toggleMenu("btnPhieuNhap", "submenuPhieuNhap");
+    toggleMenu("btnPhieuXuat", "submenuPhieuXuat");
+     toggleMenu("btnPhieudc", "submenuPhieudc");
+    toggleMenu("btnSanXuat", "submenuSanXuat");
+    toggleMenu("btnBaoCao", "submenuBaoCao");
+    toggleMenu("btnKhachHang", "submenuKhachHang");
+
+});
 function toggleMenu(id){const m=document.getElementById(id);m.classList.toggle('open');}
 function showAlert(msg,type='success'){const a=document.getElementById('alertBox');a.className=`alert alert-${type}`;a.innerHTML=msg;a.classList.remove('d-none');if(type==='success')setTimeout(()=>a.classList.add('d-none'),4000);}
 
@@ -137,29 +288,71 @@ async function loadFormula(){
 
 document.getElementById('fSlsx').addEventListener('input',()=>{if(document.getElementById('fMasp').value)loadFormula();});
 
-async function submit(){
-    const h=getHeaders();if(!h)return;
-    const masp=document.getElementById('fMasp').value;
-    const sl=document.getElementById('fSlsx').value;
-    const ngay=document.getElementById('fNgaysx').value;
-    if(!masp||!sl||!ngay){showAlert('Vui lòng chọn sản phẩm, số lượng và ngày sản xuất','warning');return;}
-    const payload={
-        Malenh:document.getElementById('fMalenh').value||undefined,
-        Masp:masp, Soluongsanxuat:parseInt(sl), Ngaysanxuat:ngay,
-        Trangthai:'cho_xu_ly',
-        Ngaybatdau:document.getElementById('fNgaybd').value||null,
-        Ngayketthuc:document.getElementById('fNgaykt').value||null
+async function submit() {
+    // Sử dụng biến headers đã khai báo ở đầu file
+    const h = headers; 
+    
+    const masp = document.getElementById('fMasp').value;
+    const sl = document.getElementById('fSlsx').value;
+    const ngaysx = document.getElementById('fNgaysx').value;
+    const ngaybd = document.getElementById('fNgaybd').value;
+    const ngaykt = document.getElementById('fNgaykt').value;
+
+    // 1. Kiểm tra các trường bắt buộc
+    if (!masp || !sl || !ngaysx) {
+        showAlert('Vui lòng chọn sản phẩm, số lượng và ngày sản xuất', 'warning');
+        return;
+    }
+
+    // 2. Kiểm tra logic: Ngày kết thúc phải lớn hơn Ngày bắt đầu
+    if (ngaybd && ngaykt) {
+        const dateStart = new Date(ngaybd);
+        const dateEnd = new Date(ngaykt);
+
+        if (dateEnd <= dateStart) {
+            showAlert('<strong>Lỗi:</strong> Ngày kết thúc phải sau ngày bắt đầu!', 'danger');
+            return;
+        }
+    }
+
+    const payload = {
+        Malenh: document.getElementById('fMalenh').value || undefined,
+        Masp: masp, 
+        Soluongsanxuat: parseInt(sl), 
+        Ngaysanxuat: ngaysx,
+        Trangthai: 'cho_xu_ly',
+        Ngaybatdau: ngaybd || null,
+        Ngayketthuc: ngaykt || null
     };
-    try{
-        const res=await fetch(API+'/production-orders',{method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        const data=await res.json();
-        if(data.success){showAlert(`<strong>Tạo lệnh sản xuất thành công!</strong> Mã: <code>${data.data.id}</code> &nbsp; <a href="danh_sach_lenh_san_xuat.php" class="btn btn-sm btn-primary">Xem danh sách</a>`);}
-        else showAlert(data.message,'danger');
-    }catch(e){showAlert('Lỗi kết nối','danger');}
+
+    try {
+        const res = await fetch(API + '/production-orders', {
+            method: 'POST',
+            headers: { 
+                ...h, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showAlert(`<strong>Thành công!</strong> Mã lệnh: <code>${data.data.id || payload.Malenh}</code>`);
+            // Reset form hoặc chuyển hướng tùy ý bạn
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    } catch (e) {
+        showAlert('Lỗi kết nối: ' + e.message, 'danger');
+    }
 }
 
 document.getElementById('fNgaysx').valueAsDate=new Date();
 loadProducts();
+// Tự động cập nhật Ngày bắt đầu khi Ngày sản xuất thay đổi
+document.getElementById('fNgaysx').addEventListener('change', function() {
+    document.getElementById('fNgaybd').value = this.value;
+});
 </script>
 </body>
 </html>
