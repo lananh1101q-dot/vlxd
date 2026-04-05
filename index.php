@@ -45,6 +45,11 @@ $views = [
     'congthuc'          => ['file' => 'congthucsanpham.php', 'title' => 'Công thức Sản phẩm - VLXD'],
     'khachhang'         => ['file' => 'khachhang.php',       'title' => 'Khách hàng - VLXD'],
     'loaikhachhang'     => ['file' => 'loaikhachhang.php',   'title' => 'Loại Khách hàng - VLXD'],
+    'tonkho-nvl'        => ['file' => 'tonkho_nvl.php',      'title' => 'Tồn kho Nguyên vật liệu - VLXD'],
+    'tonkho-sp'         => ['file' => 'tonkho_sp.php',       'title' => 'Tồn kho Thành phẩm - VLXD'],
+    'phieu-nhap-danh-sach' => ['file' => 'danh_sach_phieu_nhap.php', 'title' => 'Danh sách Phiếu nhập - VLXD'],
+    'phieu-nhap-tao'    => ['file' => 'phieu_nhap.php',      'title' => 'Tạo Phiếu nhập - VLXD'],
+    'phieu-nhap-chi-tiet' => ['file' => 'chi_tiet_phieu_nhap.php', 'title' => 'Chi tiết Phiếu nhập - VLXD'],
 ];
 
 if ($page === 'dangnhap') {
