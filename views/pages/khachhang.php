@@ -27,7 +27,7 @@
                         <th>Tên khách hàng</th>
                         <th>SĐT</th>
                         <th>Địa chỉ</th>
-                        <th>Email</th>
+                       
                         <th>Loại KH</th>
                         <th class="text-center pe-4">Thao tác</th>
                     </tr>
@@ -71,10 +71,7 @@
                             </select>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label class="form-label fw-bold small text-uppercase">Email</label>
-                        <input class="form-control" id="fEmail" type="email" placeholder="email@example.com">
-                    </div>
+                   
                     <div class="mb-3">
                         <label class="form-label fw-bold small text-uppercase">Địa chỉ</label>
                         <input class="form-control" id="fDiachi" placeholder="Nhập địa chỉ liên hệ">

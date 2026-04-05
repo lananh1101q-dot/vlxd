@@ -341,16 +341,50 @@ async function openComplete(malenh){
     new bootstrap.Modal(document.getElementById('hoanThanhModal')).show();
 }
 
-async function confirmComplete(){
-    const makho=document.getElementById('htKho').value;
-    if(!makho){alert('Vui lòng chọn kho');return;}
-    try{
-        const res=await fetch(API+'/complete-production',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:JSON.stringify({Malenh:currentMalenh,Makho:makho})});
-        const data=await res.json();
-        bootstrap.Modal.getInstance(document.getElementById('hoanThanhModal')).hide();
-        if(data.success){showAlert('Sản xuất hoàn thành! Đã nhập thành phẩm vào kho.');load();}
-        else showAlert(data.message,'danger');
-    }catch(e){showAlert('Lỗi kết nối','danger');}
+async function confirmComplete() {
+    // 1. Sửa ID từ selKho thành htKho cho đúng với HTML bên trên
+    const selectKhoElement = document.getElementById('htKho');
+    const makho = selectKhoElement.value;
+    
+    if (!makho) {
+        alert("Vui lòng chọn kho nhập hàng!");
+        return;
+    }
+
+    console.log("Đang gửi:", { Malenh: currentMalenh, Makho: makho });
+
+    try {
+        const res = await fetch(`${API}/complete-production`, {
+            method: 'POST',
+            // 2. Sử dụng biến headers đã khai báo ở đầu file JS
+            headers: {
+                ...headers,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                Malenh: currentMalenh, 
+                Makho: makho           
+            })
+        });
+
+        const data = await res.json();
+
+        if (data.success) {
+            alert("Thành công: " + data.message);
+            
+            // 3. Cách đóng Modal chuẩn của Bootstrap 5 khi chưa gán biến
+            const modalElement = document.getElementById('hoanThanhModal');
+            const modalInstance = bootstrap.Modal.getInstance(modalElement);
+            modalInstance.hide();
+            
+            load(); // Gọi lại hàm load() để cập nhật danh sách
+        } else {
+            alert("Thất bại: " + data.message);
+        }
+    } catch (e) {
+        console.error("Lỗi:", e);
+        alert("Lỗi kết nối API. Kiểm tra Console (F12)!");
+    }
 }
 
 load();

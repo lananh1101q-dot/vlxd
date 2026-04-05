@@ -1,6 +1,29 @@
 </div> <!-- closing main-content -->
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+    function toggleMenu(btnId, subId) {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(subId);
+
+        if (btn && sub) {
+            btn.addEventListener("click", function () {
+                sub.classList.toggle("d-none");
+            });
+        }
+    }
+
+    // GỌI CHO TẤT CẢ MENU
+    toggleMenu("btnSanPham", "submenuSanPham");
+    toggleMenu("btnPhieuNhap", "submenuPhieuNhap");
+    toggleMenu("btnPhieuXuat", "submenuPhieuXuat");
+     toggleMenu("btnPhieudc", "submenuPhieudc");
+    toggleMenu("btnSanXuat", "submenuSanXuat");
+    toggleMenu("btnBaoCao", "submenuBaoCao");
+    toggleMenu("btnKhachHang", "submenuKhachHang");
+
+});
     // System-wide helpers 
     const getHeaders = () => {
         const token = localStorage.getItem('token');
@@ -62,5 +85,6 @@
         setTimeout(() => div.remove(), 4000);
     }
 </script>
+
 </body>
 </html>
