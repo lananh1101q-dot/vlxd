@@ -95,7 +95,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         credentials: "same-origin"
     });
 
-    window.location.href = "trangchu.php";
+    window.location.href = "trangchu";
 }
         // ❗ nếu sai tài khoản
         else {

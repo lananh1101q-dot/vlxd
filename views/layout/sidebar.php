@@ -67,9 +67,26 @@ $currentPage = $page ?? '';
             </a>
         </li>
         <li class="nav-item">
-            <a class="nav-link <?php echo $currentPage === 'khachhang' ? 'active' : ''; ?>" href="khachhang">
+            <a class="nav-link <?php echo in_array($currentPage, ['khachhang','loaikhachhang']) ? 'active' : ''; ?>"
+               href="#submenuKH" data-bs-toggle="collapse" role="button"
+               aria-expanded="<?php echo in_array($currentPage, ['khachhang','loaikhachhang']) ? 'true' : 'false'; ?>">
                 <i class="fas fa-users me-2"></i>Khách hàng
+                <i class="fas fa-chevron-down ms-auto" style="font-size:0.7rem;"></i>
             </a>
+            <div class="collapse <?php echo in_array($currentPage, ['khachhang','loaikhachhang']) ? 'show' : ''; ?>" id="submenuKH">
+                <ul class="nav flex-column ms-3">
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $currentPage === 'khachhang' ? 'active' : ''; ?>" href="khachhang">
+                            <i class="fas fa-address-book me-2"></i>Danh sách KH
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link <?php echo $currentPage === 'loaikhachhang' ? 'active' : ''; ?>" href="loaikhachhang">
+                            <i class="fas fa-tags me-2"></i>Loại khách hàng
+                        </a>
+                    </li>
+                </ul>
+            </div>
         </li>
 
         <li class="nav-item mt-auto"><hr class="mx-3 bg-white opacity-10"></li>
