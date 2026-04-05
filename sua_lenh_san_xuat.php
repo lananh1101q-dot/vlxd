@@ -1,11 +1,29 @@
 <?php
 session_start();
+require_once __DIR__ . '/role_helper.php';
+
+// 1. Kiểm tra bảo mật: Nếu chưa đăng nhập thì bắt quay lại trang dangnhap.php
 if (!isset($_SESSION['user'])) {
-    header('Location: dangnhap.php');
+    header("Location: dangnhap.php");
     exit;
 }
-require_once __DIR__ . '/db.php';
 
+if (!isset($_SESSION['user'])) {
+    header("Location: dangnhap.php");
+    exit;
+}
+
+$role = $_SESSION['user']['role'] ?? 'guest';//
+
+// PHÂN QUYỀN MENU
+$menus = [
+    'admin' => ['all' => true],
+    'staff' => ['phieunhap'=>true,'phieuxuat'=>true,'khachhang'=>true,'baocao'=>true,'sanpham'=>true],
+    'sanxuat' => ['sanxuat'=>true,'baocao'=>true]
+];
+
+$permission = $menus[$role] ?? [];
+require_once __DIR__ . '/services/manufacturing-service/db.php';
 $errors = [];
 $success = '';
 
@@ -18,7 +36,7 @@ if ($malenh === '') {
 }
 
 // Lấy thông tin hiện tại của lệnh sản xuất
-$stmt = $pdo->prepare("SELECT * FROM Lenhsanxuat WHERE Malenh = ?");
+$stmt = $pdo->prepare("SELECT * FROM lenhsanxuat WHERE Malenh = ?");
 $stmt->execute([$malenh]);
 $lenh = $stmt->fetch();
 
@@ -150,55 +168,120 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <nav class="sidebar">
     <div class="text-center mb-4">
         <h4><i class="fas fa-warehouse"></i> Quản Lý Kho</h4>
+        <div style="font-size: 0.85rem; margin-top: 10px; padding: 10px; background-color: rgba(255,255,255,0.1); border-radius: 5px;">
+            <div><strong><?= htmlspecialchars($user['fullname'] ?? $user['username']) ?></strong></div>
+            <div style="font-size: 0.75rem; margin-top: 5px;">
+                <i class="fas fa-user-circle"></i> <?= $role ?>
+            </div>
+        </div>
     </div>
+
     <ul class="nav flex-column">
-        <li class="nav-item"><a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a></li>
+
+        <!-- Trang chủ -->
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnSanPham"><i class="fas fa-box"></i> Quản lý sản phẩm <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="trangchu.php"><i class="fas fa-home"></i> Trang Chủ</a>
+        </li>
+
+        <!-- SẢN PHẨM -->
+        <?php if (!empty($permission['sanpham']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanPham">
+                <i class="fas fa-box"></i> Quản lý sản phẩm
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuSanPham">
-                <li class="nav-item"><a class="nav-link" href="Sanpham.php"><i class="fas fa-cube"></i> Sản phẩm</a></li>
-                <li class="nav-item"><a class="nav-link" href="dmsp.php"><i class="fas fa-tags"></i> Danh mục sản phẩm</a></li>
-                <li class="nav-item"><a class="nav-link" href="Nhacungcap.php"><i class="fas fa-truck"></i> Nhà cung cấp</a></li>
+                <li><a class="nav-link" href="Sanpham.php">Sản phẩm</a></li>
+                <li><a class="nav-link" href="dmsp.php">Danh mục</a></li>
+                <li><a class="nav-link" href="Nhacungcap.php">Nhà cung cấp</a></li>
             </ul>
         </li>
+        <?php endif; ?>
+
+        <!-- PHIẾU NHẬP -->
+        <?php if (!empty($permission['phieunhap']) || isset($permission['all'])): ?>
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap"><i class="fas fa-file-import"></i> Phiếu nhập kho <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieuNhap">
+                <i class="fas fa-file-import"></i> Phiếu nhập
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuPhieuNhap">
-                <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_nhap.php"><i class="fas fa-list"></i> Danh sách phiếu nhập</a></li>
-                <li class="nav-item"><a class="nav-link" href="phieu_nhap.php"><i class="fas fa-plus-circle"></i> Tạo phiếu nhập</a></li>
+                <li><a class="nav-link" href="danh_sach_phieu_nhap.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_nhap.php">Tạo phiếu</a></li>
             </ul>
         </li>
+        <?php endif; ?>
+   <!-- PHIẾU xuất -->
+        <?php if (!empty($permission['phieuxuat']) || isset($permission['all'])): ?>
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat"><i class="fas fa-file-export"></i> Phiếu xuất <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieuXuat">
+                <i class="fas fa-file-import"></i> Phiếu xuất
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuPhieuXuat">
-                <li class="nav-item"><a class="nav-link" href="danh_sach_phieu_xuat.php"><i class="fas fa-list"></i> Danh sách phiếu xuất</a></li>
-                <li class="nav-item"><a class="nav-link" href="phieu_xuat.php"><i class="fas fa-plus-circle"></i> Tạo phiếu xuất</a></li>
+                <li><a class="nav-link" href="danh_sach_phieu_xuat.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_xuat.php">Tạo phiếu</a></li>
             </ul>
         </li>
+        <?php endif; ?>
+        <!-- PHIẾU điều chuyển -->
+        <?php if (!empty($permission['phieudc']) || isset($permission['all'])): ?>
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat"><i class="fas fa-cogs"></i> Sản xuất <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="javascript:void(0)" id="btnPhieudc">
+                <i class="fas fa-file-export"></i> Phiếu điều chuyển
+            </a>
+            <ul class="nav flex-column ms-3 d-none" id="submenuPhieudc">
+                <li><a class="nav-link" href="danh_sach_phieu_dieuchuyen.php">Danh sách</a></li>
+                <li><a class="nav-link" href="phieu_dieuchuyen.php">Tạo phiếu</a></li>
+            </ul>
+        </li>
+        <?php endif; ?>
+     
+
+        <!-- SẢN XUẤT -->
+        <?php if (!empty($permission['sanxuat']) || isset($permission['all'])): ?>
+        <li class="nav-item">
+            <a class="nav-link" href="javascript:void(0)" id="btnSanXuat">
+                <i class="fas fa-cogs"></i> Sản xuất
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuSanXuat">
-                <li class="nav-item"><a class="nav-link" href="danh_sach_lenh_san_xuat.php"><i class="fas fa-list"></i> Danh sách lệnh sản xuất</a></li>
-                <li class="nav-item"><a class="nav-link" href="lenh_san_xuat.php"><i class="fas fa-plus-circle"></i> Tạo lệnh sản xuất</a></li>
+                <li><a class="nav-link" href="danh_sach_lenh_san_xuat.php">Danh sách</a></li>
+                <li><a class="nav-link" href="lenh_san_xuat.php">Tạo lệnh</a></li>
             </ul>
         </li>
+        <?php endif; ?>
+
+        <!-- BÁO CÁO -->
+        <?php if (!empty($permission['baocao']) || isset($permission['all'])): ?>
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnBaoCao"><i class="fas fa-chart-bar"></i> Báo cáo & Thống kê <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="javascript:void(0)" id="btnBaoCao">
+                <i class="fas fa-chart-bar"></i> Báo cáo
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuBaoCao">
-                <li class="nav-item"><a class="nav-link" href="tonkho.php"><i class="fas fa-warehouse"></i> Báo cáo tồn kho</a></li>
+                <li><a class="nav-link" href="tonkho.php">Tồn kho</a></li>
             </ul>
         </li>
+        <?php endif; ?>
+
+        <!-- KHÁCH HÀNG -->
+        <?php if (!empty($permission['khachhang']) || isset($permission['all'])): ?>
         <li class="nav-item">
-            <a class="nav-link" href="javascript:void(0)" id="btnKhachHang"><i class="fas fa-users"></i> Quản lý khách hàng <i class="fas fa-chevron-down float-end"></i></a>
+            <a class="nav-link" href="javascript:void(0)" id="btnKhachHang">
+                <i class="fas fa-users"></i> Khách hàng
+            </a>
             <ul class="nav flex-column ms-3 d-none" id="submenuKhachHang">
-                <li class="nav-item"><a class="nav-link" href="khachhang.php"><i class="fas fa-user"></i> Khách hàng</a></li>
-                <li class="nav-item"><a class="nav-link" href="loaikhachhang.php"><i class="fas fa-users-cog"></i> Loại khách hàng</a></li>
+                <li><a class="nav-link" href="khachhang.php">Khách hàng</a></li>
+                <li><a class="nav-link" href="loaikhachhang.php">Loại KH</a></li>
             </ul>
         </li>
-        <li class="nav-item"><a class="nav-link text-danger" href="logout.php"><i class="fas fa-sign-out-alt"></i> Đăng xuất</a></li>
+        <?php endif; ?>
+
+        <!-- LOGOUT -->
+        <li class="nav-item mt-4 pt-3 border-top">
+            <a class="nav-link text-danger" href="logout.php">
+                <i class="fas fa-sign-out-alt"></i> Đăng xuất
+            </a>
+        </li>
+
     </ul>
 </nav>
-
 <div class="main-content">
   <div class="max-w-5xl mx-auto p-6 space-y-6">
     <div class="flex items-center justify-between">
@@ -278,13 +361,31 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   </div>
 </div>
 
-<script>
-    const menus = ["SanPham", "PhieuNhap", "PhieuXuat", "SanXuat", "BaoCao", "KhachHang"];
-    menus.forEach(menu => {
-        document.getElementById(`btn${menu}`)?.addEventListener("click", function () {
-            document.getElementById(`submenu${menu}`).classList.toggle("d-none");
-        });
-    });
+<script>  
+document.addEventListener("DOMContentLoaded", function () {
+
+    function toggleMenu(btnId, subId) {
+        const btn = document.getElementById(btnId);
+        const sub = document.getElementById(subId);
+
+        if (btn && sub) {
+            btn.addEventListener("click", function () {
+                sub.classList.toggle("d-none");
+            });
+        }
+    }
+
+    // GỌI CHO TẤT CẢ MENU
+    toggleMenu("btnSanPham", "submenuSanPham");
+    toggleMenu("btnPhieuNhap", "submenuPhieuNhap");
+    toggleMenu("btnPhieuXuat", "submenuPhieuXuat");
+     toggleMenu("btnPhieudc", "submenuPhieudc");
+    toggleMenu("btnSanXuat", "submenuSanXuat");
+    toggleMenu("btnBaoCao", "submenuBaoCao");
+    toggleMenu("btnKhachHang", "submenuKhachHang");
+
+});
+
     // Tự động mở menu Sản xuất
     document.getElementById("submenuSanXuat")?.classList.remove("d-none");
 </script>
