@@ -36,7 +36,7 @@ $roleName = getRoleName(getCurrentRole());
 
         <!-- NHẬP KHO -->
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Hoạt động kho</li>
-        <li id="menu-warehouse" style="display: none;">
+        <li id="menu-warehouse" style="display: block;">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'phieu-nhap') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuNhap">
                 <i class="fas fa-file-import me-2"></i> Nhập kho <i class="fas fa-chevron-down float-end mt-1 small"></i>
             </a>
@@ -71,6 +71,11 @@ $roleName = getRoleName(getCurrentRole());
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'khachhang' ? 'active' : ''; ?>" href="khachhang">
                 <i class="fas fa-users me-2"></i> Khách hàng
+            </a>
+        </li>
+                <li class="nav-item">
+            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'loaikhachhang' ? 'active' : ''; ?>" href="loaikhachhang">
+                <i class="fas fa-users me-2"></i> Loại khách hàng
             </a>
         </li>
 
