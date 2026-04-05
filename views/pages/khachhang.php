@@ -27,7 +27,6 @@
                         <th>Tên khách hàng</th>
                         <th>SĐT</th>
                         <th>Địa chỉ</th>
-                       
                         <th>Loại KH</th>
                         <th class="text-center pe-4">Thao tác</th>
                     </tr>
@@ -139,7 +138,6 @@
                 <td class="fw-bold text-dark">${r.Tenkh}</td>
                 <td>${r.Sdtkh || '—'}</td>
                 <td><small class="text-muted">${r.Diachikh || '—'}</small></td>
-                <td>${r.Email || '—'}</td>
                 <td><span class="badge bg-primary bg-opacity-10 text-primary">${r.Tenloaikh || r.Maloaikh || '—'}</span></td>
                 <td class="text-center pe-4">
                     <button class="btn btn-outline-primary btn-action" onclick="openCustomerModal('${r.Makh}')"><i class="fas fa-edit"></i></button>
@@ -174,7 +172,6 @@
                 maInput.readOnly = true;
                 document.getElementById('fTenkh').value = r.Tenkh;
                 document.getElementById('fSdt').value = r.Sdtkh || '';
-                document.getElementById('fEmail').value = r.Email || '';
                 document.getElementById('fDiachi').value = r.Diachikh || '';
                 document.getElementById('fLoai').value = r.Maloaikh || '';
             }
@@ -196,7 +193,6 @@
             Tenkh: document.getElementById('fTenkh').value,
             Sdtkh: document.getElementById('fSdt').value,
             Diachikh: document.getElementById('fDiachi').value,
-            Email: document.getElementById('fEmail').value,
             Maloaikh: document.getElementById('fLoai').value
         };
 

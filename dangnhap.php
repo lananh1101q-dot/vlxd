@@ -4,6 +4,12 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Đăng nhập — Hệ thống Quản lý kho</title>
+  <script>
+    // Nếu đã đăng nhập rồi thì không cần vào trang này nữa
+    if (localStorage.getItem('token')) {
+      window.location.replace('/trangchu');
+    }
+  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -95,7 +101,7 @@ document.getElementById('loginForm').addEventListener('submit', async function(e
         credentials: "same-origin"
     });
 
-    window.location.href = "trangchu.php";
+    window.location.href = "trangchu";
 }
         // ❗ nếu sai tài khoản
         else {

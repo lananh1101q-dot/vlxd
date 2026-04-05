@@ -12,8 +12,28 @@ if (!isLoggedIn()) {
 }
 */
 
+if (php_sapi_name() === 'cli-server') {
+    $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    if ($requestUri !== '/' && is_file(__DIR__ . $requestUri)) {
+        return false; // Serve the requested file instead of routing
+    }
+}
+
 // Get the requested page
-$page = isset($_GET['page']) ? $_GET['page'] : 'trangchu';
+$page = 'trangchu';
+if (isset($_GET['page'])) {
+    $page = $_GET['page'];
+} else {
+    $requestUri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+    $path = trim($requestUri, '/');
+    if (!empty($path)) {
+        $page = explode('/', $path)[0];
+    } else {
+        // Root URL "/" → redirect to login
+        header('Location: /dangnhap');
+        exit;
+    }
+}
 
 // Mapping URL paths to view files
 $views = [
@@ -24,7 +44,13 @@ $views = [
     'nhacungcap'        => ['file' => 'nhacungcap.php',      'title' => 'Nhà cung cấp - VLXD'],
     'congthuc'          => ['file' => 'congthucsanpham.php', 'title' => 'Công thức Sản phẩm - VLXD'],
     'khachhang'         => ['file' => 'khachhang.php',       'title' => 'Khách hàng - VLXD'],
+    'loaikhachhang'     => ['file' => 'loaikhachhang.php',   'title' => 'Loại Khách hàng - VLXD'],
 ];
+
+if ($page === 'dangnhap') {
+    require_once __DIR__ . '/dangnhap.php';
+    exit;
+}
 
 // Check if page exists
 if (!isset($views[$page])) {
@@ -50,3 +76,4 @@ if (file_exists($viewPath)) {
 
 // Footer (Includes closing of main-content)
 require_once __DIR__ . '/views/layout/footer.php';
+
