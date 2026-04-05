@@ -22,7 +22,7 @@
         // Check if user is logged in
         const token = localStorage.getItem('token');
         if (!token && window.location.pathname.indexOf('dangnhap') === -1) {
-            window.location.href = 'dangnhap.php';
+            window.location.href = 'dangnhap';
         }
     </script>
 </head>

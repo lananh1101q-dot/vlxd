@@ -40,7 +40,7 @@
         const token = localStorage.getItem('token');
         
         if (!token) {
-             window.location.href = 'dangnhap.php';
+             window.location.href = '/dangnhap';
              return;
         }
 
@@ -68,7 +68,7 @@
             e.preventDefault();
             if (confirm('Bạn có muốn đăng xuất?')) {
                 localStorage.clear();
-                window.location.href = 'logout.php';
+                window.location.href = '/dangnhap';
             }
         });
     }

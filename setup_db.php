@@ -46,8 +46,8 @@ try {
     }
 
     echo "\n<h3 style='color:#00e5ff'>=== HOÀN TẤT THIẾT LẬP DATABASE MICROSERVICES ===</h3>\n";
-    echo "Bây giờ bạn hãy chạy file <b>start_services.bat</b> ở thư mục gốc để khởi động các cổng mạng.\n";
-    echo "Sau đó truy cập vào trang <a href='dangnhap.php' style='color:orange'>dangnhap.php</a> để kiểm tra luồng API Gateway.";
+    echo "Bây giờ bạn hãy chạy file <b>./start_services.sh</b> ở thư mục gốc để khởi động các cổng mạng.\n";
+    echo "Sau đó truy cập vào trang <a href='http://localhost:8888' style='color:orange'>API Gateway</a> để kiểm tra luồng API Gateway.";
 } catch(PDOException $e) {
     echo "<span class='err'>LỖI DATABASE: " . $e->getMessage() . "</span>";
 }

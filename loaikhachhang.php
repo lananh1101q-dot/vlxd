@@ -198,8 +198,21 @@ $roleName = getRoleName($role);
     <div class="modal-dialog"><div class="modal-content" style="border-radius:12px;border:none">
         <div class="modal-header border-0"><h5 class="modal-title fw-bold" id="modalTitle">Thêm loại KH</h5><button class="btn-close" data-bs-dismiss="modal"></button></div>
         <div class="modal-body pt-0">
-            <div class="mb-3"><label class="form-label fw-semibold">Mã loại *</label><input class="form-control" id="fMa" placeholder="VD: LKH001" required></div>
-            <div class="mb-3"><label class="form-label fw-semibold">Tên loại *</label><input class="form-control" id="fTen" placeholder="Tên loại khách hàng" required></div>
+            <div class="mb-3"><label class="form-label fw-semibold">Mã loại *</label><input class="form-control" id="fMa" placeholder="Hệ thống tự động tạo mã" disabled></div>
+            <div class="mb-3">
+                <label class="form-label fw-semibold">Tên loại *</label>
+                <select class="form-select" id="fTen" required>
+                    <option value="">-- Chọn loại khách hàng --</option>
+                    <option value="Khách lẻ">Khách lẻ</option>
+                    <option value="Khách sỉ">Khách sỉ</option>
+                    <option value="Đại lý cấp 1">Đại lý cấp 1</option>
+                    <option value="Đại lý cấp 2">Đại lý cấp 2</option>
+                    <option value="Đại lý cấp 3">Đại lý cấp 3</option>
+                    <option value="Nhà thầu/Dự án">Nhà thầu/Dự án</option>
+                    <option value="Nhà phân phối">Nhà phân phối</option>
+                    <option value="VIP">VIP</option>
+                </select>
+            </div>
             <div class="mb-3"><label class="form-label fw-semibold">Mô tả</label><textarea class="form-control" id="fMota" rows="2" placeholder="Mô tả (tuỳ chọn)"></textarea></div>
         </div>
         <div class="modal-footer border-0">
@@ -267,7 +280,7 @@ async function load(){
     }catch(e){document.getElementById('tbody').innerHTML=`<tr><td colspan="4" class="text-center text-danger py-4">Lỗi: ${e.message}</td></tr>`;}
 }
 
-function openModal(){editId=null;document.getElementById('modalTitle').textContent='Thêm loại KH';document.getElementById('fMa').value='';document.getElementById('fMa').disabled=false;document.getElementById('fTen').value='';document.getElementById('fMota').value='';new bootstrap.Modal(document.getElementById('lkhModal')).show();}
+function openModal(){editId=null;document.getElementById('modalTitle').textContent='Thêm loại KH';document.getElementById('fMa').value='';document.getElementById('fMa').disabled=true;document.getElementById('fTen').value='';document.getElementById('fMota').value='';new bootstrap.Modal(document.getElementById('lkhModal')).show();}
 function editType(id,ten,mota){editId=id;document.getElementById('modalTitle').textContent='Sửa loại KH';document.getElementById('fMa').value=id;document.getElementById('fMa').disabled=true;document.getElementById('fTen').value=ten;document.getElementById('fMota').value=mota;new bootstrap.Modal(document.getElementById('lkhModal')).show();}
 
 async function save() {
@@ -280,7 +293,8 @@ async function save() {
         Mota: document.getElementById('fMota').value
     };
 
-    if(!body.Maloaikh || !body.Tenloaikh) return alert('Vui lòng nhập mã và tên loại!');
+    if(isEdit && !body.Maloaikh) return alert('Bị mất mã loại!');
+    if(!body.Tenloaikh) return alert('Vui lòng chọn tên loại khách hàng!');
 
     try {
         const url = isEdit ? `${API}/customer-types/${body.Maloaikh}` : `${API}/customer-types`;
