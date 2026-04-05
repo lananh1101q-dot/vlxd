@@ -1,12 +1,16 @@
 <?php
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
 session_start();
 require_once __DIR__ . '/role_helper.php';
 
-// Authentication check
+/* 
+// Authentication check (Removed because we use JWT in LocalStorage)
 if (!isLoggedIn()) {
     header("Location: dangnhap.php");
     exit;
 }
+*/
 
 // Get the requested page
 $page = isset($_GET['page']) ? $_GET['page'] : 'trangchu';
