@@ -7,7 +7,6 @@ if (!isset($_SESSION['user'])) {
     header("Location: dangnhap.php");
     exit;
 }
-
 if (!isset($_SESSION['user'])) {
     header("Location: dangnhap.php");
     exit;
@@ -289,29 +288,71 @@ async function loadFormula(){
 
 document.getElementById('fSlsx').addEventListener('input',()=>{if(document.getElementById('fMasp').value)loadFormula();});
 
-async function submit(){
-    const h=getHeaders();if(!h)return;
-    const masp=document.getElementById('fMasp').value;
-    const sl=document.getElementById('fSlsx').value;
-    const ngay=document.getElementById('fNgaysx').value;
-    if(!masp||!sl||!ngay){showAlert('Vui lòng chọn sản phẩm, số lượng và ngày sản xuất','warning');return;}
-    const payload={
-        Malenh:document.getElementById('fMalenh').value||undefined,
-        Masp:masp, Soluongsanxuat:parseInt(sl), Ngaysanxuat:ngay,
-        Trangthai:'cho_xu_ly',
-        Ngaybatdau:document.getElementById('fNgaybd').value||null,
-        Ngayketthuc:document.getElementById('fNgaykt').value||null
+async function submit() {
+    // Sử dụng biến headers đã khai báo ở đầu file
+    const h = headers; 
+    
+    const masp = document.getElementById('fMasp').value;
+    const sl = document.getElementById('fSlsx').value;
+    const ngaysx = document.getElementById('fNgaysx').value;
+    const ngaybd = document.getElementById('fNgaybd').value;
+    const ngaykt = document.getElementById('fNgaykt').value;
+
+    // 1. Kiểm tra các trường bắt buộc
+    if (!masp || !sl || !ngaysx) {
+        showAlert('Vui lòng chọn sản phẩm, số lượng và ngày sản xuất', 'warning');
+        return;
+    }
+
+    // 2. Kiểm tra logic: Ngày kết thúc phải lớn hơn Ngày bắt đầu
+    if (ngaybd && ngaykt) {
+        const dateStart = new Date(ngaybd);
+        const dateEnd = new Date(ngaykt);
+
+        if (dateEnd <= dateStart) {
+            showAlert('<strong>Lỗi:</strong> Ngày kết thúc phải sau ngày bắt đầu!', 'danger');
+            return;
+        }
+    }
+
+    const payload = {
+        Malenh: document.getElementById('fMalenh').value || undefined,
+        Masp: masp, 
+        Soluongsanxuat: parseInt(sl), 
+        Ngaysanxuat: ngaysx,
+        Trangthai: 'cho_xu_ly',
+        Ngaybatdau: ngaybd || null,
+        Ngayketthuc: ngaykt || null
     };
-    try{
-        const res=await fetch(API+'/production-orders',{method:'POST',headers:{...h,'Content-Type':'application/json'},body:JSON.stringify(payload)});
-        const data=await res.json();
-        if(data.success){showAlert(`<strong>Tạo lệnh sản xuất thành công!</strong> Mã: <code>${data.data.id}</code> &nbsp; <a href="danh_sach_lenh_san_xuat.php" class="btn btn-sm btn-primary">Xem danh sách</a>`);}
-        else showAlert(data.message,'danger');
-    }catch(e){showAlert('Lỗi kết nối','danger');}
+
+    try {
+        const res = await fetch(API + '/production-orders', {
+            method: 'POST',
+            headers: { 
+                ...h, 
+                'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify(payload)
+        });
+
+        const data = await res.json();
+        if (data.success) {
+            showAlert(`<strong>Thành công!</strong> Mã lệnh: <code>${data.data.id || payload.Malenh}</code>`);
+            // Reset form hoặc chuyển hướng tùy ý bạn
+        } else {
+            showAlert(data.message, 'danger');
+        }
+    } catch (e) {
+        showAlert('Lỗi kết nối: ' + e.message, 'danger');
+    }
 }
 
 document.getElementById('fNgaysx').valueAsDate=new Date();
 loadProducts();
+// Tự động cập nhật Ngày bắt đầu khi Ngày sản xuất thay đổi
+document.getElementById('fNgaysx').addEventListener('change', function() {
+    document.getElementById('fNgaybd').value = this.value;
+});
 </script>
 </body>
 </html>
