@@ -68,8 +68,8 @@ insertData('vlxd_customer', [
 
 // 5. Manufacturing
 insertData('vlxd_manufacturing', [
-    "INSERT IGNORE INTO lenhsanxuat (Malenh, Masp, Ngaysanxuat, Soluongsanxuat, Trangthai, Ghichu) VALUES (?, ?, ?, ?, ?, ?)" => [
-        ['LS01', 'SP01', date('Y-m-d'), 500.00, 'dang_xu_ly', 'SX dot 1']
+    "INSERT IGNORE INTO lenhsanxuat (Malenh, Masp, Ngaysanxuat, Soluongsanxuat, Trangthai, Ngaybatdau, Ngayketthuc, Ghichu) VALUES (?, ?, ?, ?, ?, ?, ?, ?)" => [
+        ['LS01', 'SP01', date('Y-m-d'), 500.00, 'dang_xu_ly', date('Y-m-d'), date('Y-m-d', strtotime('+7 days')), 'SX dot 1']
     ]
 ]);
 

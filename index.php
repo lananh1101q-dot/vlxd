@@ -50,6 +50,9 @@ $views = [
     'phieu-nhap-danh-sach' => ['file' => 'danh_sach_phieu_nhap.php', 'title' => 'Danh sách Phiếu nhập - VLXD'],
     'phieu-nhap-tao'    => ['file' => 'phieu_nhap.php',      'title' => 'Tạo Phiếu nhập - VLXD'],
     'phieu-nhap-chi-tiet' => ['file' => 'chi_tiet_phieu_nhap.php', 'title' => 'Chi tiết Phiếu nhập - VLXD'],
+    'lenh-san-xuat-danh-sach' => ['file' => 'lenh_san_xuat_danh_sach.php', 'title' => 'Danh sách Lệnh sản xuất - VLXD'],
+    'lenh-san-xuat-tao'    => ['file' => 'lenh_san_xuat_tao.php',         'title' => 'Tạo Lệnh sản xuất - VLXD'],
+    'lenh-san-xuat-sua'    => ['file' => 'lenh_san_xuat_sua.php',         'title' => 'Sửa Lệnh sản xuất - VLXD'],
 ];
 
 if ($page === 'dangnhap') {

@@ -6,8 +6,10 @@ CREATE TABLE Lenhsanxuat (
     Masp VARCHAR(50) NOT NULL,
     Ngaysanxuat DATE NOT NULL,
     Soluongsanxuat DECIMAL(18,2) NOT NULL,
-    Trangthai VARCHAR(50) DEFAULT N'Đang sản xuất',
-    Ghichu TEXT
+    Trangthai VARCHAR(50) DEFAULT N'dang_xu_ly',
+    Ngaybatdau DATE NULL,
+    Ngayketthuc DATE NULL,
+    Ghichu TEXT NULL
 ) ENGINE=InnoDB;
 
 CREATE TABLE Chitiet_XuatNVL_Sanxuat (

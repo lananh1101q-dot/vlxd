@@ -50,7 +50,7 @@ try {
         else if ($method === 'POST') {
             $body = getBody();
             $malenh = $body['Malenh'] ?? ('LSX' . time());
-            $stmt = $pdo->prepare("INSERT INTO Lenhsanxuat (Malenh, Masp, Ngaysanxuat, Soluongsanxuat, Trangthai, Ngaybatdau, Ngayketthuc) VALUES (?, ?, ?, ?, ?, ?, ?)");
+            $stmt = $pdo->prepare("INSERT INTO Lenhsanxuat (Malenh, Masp, Ngaysanxuat, Soluongsanxuat, Trangthai, Ngaybatdau, Ngayketthuc, Ghichu) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $malenh,
                 $body['Masp'],
@@ -58,7 +58,8 @@ try {
                 $body['Soluongsanxuat'],
                 $body['Trangthai'] ?? 'cho_xu_ly',
                 $body['Ngaybatdau'] ?? null,
-                $body['Ngayketthuc'] ?? null
+                $body['Ngayketthuc'] ?? null,
+                $body['Ghichu'] ?? null
             ]);
             jsonResponse(true, 'Production order created', ['id' => $malenh], 201);
         }
@@ -69,7 +70,7 @@ try {
                 $stmt = $pdo->prepare("UPDATE Lenhsanxuat SET Trangthai=? WHERE Malenh=?");
                 $stmt->execute([$body['Trangthai'], $id]);
             } else {
-                $stmt = $pdo->prepare("UPDATE Lenhsanxuat SET Masp=?, Ngaysanxuat=?, Soluongsanxuat=?, Trangthai=?, Ngaybatdau=?, Ngayketthuc=? WHERE Malenh=?");
+                $stmt = $pdo->prepare("UPDATE Lenhsanxuat SET Masp=?, Ngaysanxuat=?, Soluongsanxuat=?, Trangthai=?, Ngaybatdau=?, Ngayketthuc=?, Ghichu=? WHERE Malenh=?");
                 $stmt->execute([
                     $body['Masp'],
                     $body['Ngaysanxuat'],
@@ -77,6 +78,7 @@ try {
                     $body['Trangthai'] ?? 'cho_xu_ly',
                     $body['Ngaybatdau'] ?? null,
                     $body['Ngayketthuc'] ?? null,
+                    $body['Ghichu'] ?? null,
                     $id
                 ]);
             }
@@ -109,13 +111,13 @@ try {
             // Nhập thành phẩm vào tồn kho
             $masp = $order['Masp'];
             $sl   = $order['Soluongsanxuat'];
-            $chk  = $pdo->prepare("SELECT 1 FROM Tonkho_sp WHERE Makho=? AND Masp=?");
+            $chk  = $pdo->prepare("SELECT 1 FROM vlxd_warehouse.tonkho_sp WHERE Makho=? AND Masp=?");
             $chk->execute([$makho, $masp]);
             if ($chk->fetchColumn()) {
-                $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton + ? WHERE Makho=? AND Masp=?")
+                $pdo->prepare("UPDATE vlxd_warehouse.tonkho_sp SET Soluongton = Soluongton + ? WHERE Makho=? AND Masp=?")
                     ->execute([$sl, $makho, $masp]);
             } else {
-                $pdo->prepare("INSERT INTO Tonkho_sp (Makho, Masp, Soluongton) VALUES (?, ?, ?)")
+                $pdo->prepare("INSERT INTO vlxd_warehouse.tonkho_sp (Makho, Masp, Soluongton) VALUES (?, ?, ?)")
                     ->execute([$makho, $masp, $sl]);
             }
 

@@ -20,10 +20,10 @@ $roleName = getRoleName(getCurrentRole());
             </a>
         </li>
         
-        <!-- Hàng hóa & Danh mục -->
-        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Sản phẩm & Đối tác</li>
+        <!-- Hàng hóa & Đối tác -->
+        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Danh mục & Đối tác</li>
         <li class="nav-item">
-            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo in_array($currentPage, ['sanpham', 'dmsp', 'nguyenvatlieu']) ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuSP">
+            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo in_array($currentPage, ['sanpham', 'dmsp', 'nguyenvatlieu', 'nhacungcap']) ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuSP">
                 <i class="fas fa-box me-2"></i> Hàng hóa <i class="fas fa-chevron-down float-end mt-1 small"></i>
             </a>
             <div class="collapse <?php echo in_array($currentPage, ['sanpham', 'dmsp', 'nguyenvatlieu', 'nhacungcap']) ? 'show' : ''; ?>" id="menuSP" style="margin-left: 20px;">
@@ -50,10 +50,24 @@ $roleName = getRoleName(getCurrentRole());
             </a>
         </li>
 
+        <!-- SẢN XUẤT -->
+        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Sản xuất</li>
+        <li class="nav-item">
+            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'lenh-san-xuat') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuSanXuat">
+                <i class="fas fa-cogs me-2"></i> Sản xuất <i class="fas fa-chevron-down float-end mt-1 small"></i>
+            </a>
+            <div class="collapse <?php echo strpos($currentPage, 'lenh-san-xuat') !== false ? 'show' : ''; ?>" id="menuSanXuat" style="margin-left: 20px;">
+                <a class="nav-link small py-1" href="lenh-san-xuat-danh-sach"><i class="fas fa-list me-2 opacity-50"></i> Danh sách lệnh</a>
+                <a class="nav-link small py-1" href="lenh-san-xuat-tao"><i class="fas fa-plus-circle me-2 opacity-50"></i> Tạo lệnh mới</a>
+                <a class="nav-link small py-1" href="congthuc"><i class="fas fa-flask me-2 opacity-50"></i> Công thức SP</a>
+            </div>
+        </li>
+
         <!-- TỒN KHO & BÁO CÁO -->
+        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Báo cáo & Thống kê</li>
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'tonkho') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuBaoCao">
-                <i class="fas fa-chart-pie me-2"></i> Tồn kho & Báo cáo <i class="fas fa-chevron-down float-end mt-1 small"></i>
+                <i class="fas fa-chart-pie me-2"></i> Tồn kho <i class="fas fa-chevron-down float-end mt-1 small"></i>
             </a>
             <div class="collapse <?php echo strpos($currentPage, 'tonkho') !== false ? 'show' : ''; ?>" id="menuBaoCao" style="margin-left: 20px;">
                 <a class="nav-link small py-1" href="tonkho-nvl"><i class="fas fa-boxes-stacked me-2 opacity-50"></i> Tồn kho NVL</a>
@@ -62,21 +76,15 @@ $roleName = getRoleName(getCurrentRole());
             </div>
         </li>
 
-        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Sản xuất & Đối tác</li>
+        <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Đối tác</li>
         <li class="nav-item">
-            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'congthuc' ? 'active' : ''; ?>" href="congthuc">
-                <i class="fas fa-flask me-2"></i> Công thức SP
+            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo in_array($currentPage, ['khachhang', 'loaikhachhang']) ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuKH">
+                <i class="fas fa-users me-2"></i> Khách hàng <i class="fas fa-chevron-down float-end mt-1 small"></i>
             </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'khachhang' ? 'active' : ''; ?>" href="khachhang">
-                <i class="fas fa-users me-2"></i> Khách hàng
-            </a>
-        </li>
-                <li class="nav-item">
-            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'loaikhachhang' ? 'active' : ''; ?>" href="loaikhachhang">
-                <i class="fas fa-users me-2"></i> Loại khách hàng
-            </a>
+            <div class="collapse <?php echo in_array($currentPage, ['khachhang', 'loaikhachhang']) ? 'show' : ''; ?>" id="menuKH" style="margin-left: 20px;">
+                <a class="nav-link small py-1" href="khachhang"><i class="fas fa-user-friends me-2 opacity-50"></i> Danh sách KH</a>
+                <a class="nav-link small py-1" href="loaikhachhang"><i class="fas fa-id-card me-2 opacity-50"></i> Loại khách hàng</a>
+            </div>
         </li>
 
         <!-- Footer actions -->
