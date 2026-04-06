@@ -4,12 +4,6 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Đăng nhập — Hệ thống Quản lý kho</title>
-  <script>
-    // Nếu đã đăng nhập rồi thì không cần vào trang này nữa
-    if (localStorage.getItem('token')) {
-      window.location.replace('/trangchu');
-    }
-  </script>
   <script src="https://cdn.tailwindcss.com"></script>
   <style>
     body {
@@ -56,64 +50,44 @@
   </div>
 
 <script>
-document.getElementById('loginForm').addEventListener('submit', async function(e) {
+  document.getElementById('loginForm').addEventListener('submit', async function(e) {
     e.preventDefault();
-
-    const u = document.getElementById('username').value.trim();
-    const p = document.getElementById('password').value.trim();
+    const u = document.getElementById('username').value;
+    const p = document.getElementById('password').value;
     const errorDiv = document.getElementById('errorMsg');
-
+    
     errorDiv.classList.add('hidden');
-
-    // ❗ kiểm tra rỗng
-    if (!u || !p) {
-        errorDiv.textContent = "Vui lòng nhập đầy đủ thông tin!";
-        errorDiv.classList.remove('hidden');
-        return;
-    }
-
+    
     try {
         const response = await fetch('http://localhost:8000/api/v1/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-                Tendangnhap: u, 
-                Matkhau: p 
-            })
+            body: JSON.stringify({ Tendangnhap: u, Matkhau: p })
         });
-
         const result = await response.json();
-
-        // ❗ nếu login thành công
+        
         if (result.success) {
-    const user = result.data.user;
-
-    // 🔥 THÊM DÒNG NÀY
-    localStorage.setItem('token', result.data.token);
-
-    // Gửi session
-    const formData = new FormData();
-    formData.append("user", JSON.stringify(user));
-
-    await fetch("set_session.php", {
-        method: "POST",
-        body: formData,
-        credentials: "same-origin"
-    });
-
-    window.location.href = "trangchu";
-}
-        // ❗ nếu sai tài khoản
-        else {
-            errorDiv.textContent = result.message || "Sai tài khoản hoặc mật khẩu!";
+            localStorage.setItem('token', result.data.token);
+            localStorage.setItem('user', JSON.stringify(result.data.user));
+            
+            const vaitro = result.data.user.Vaitro.toLowerCase();
+            
+            if (vaitro === 'admin') {
+                alert("Chào Admin!");
+                window.location.href = 'trangchu.php';
+            } else {
+                alert("Chào Nhân viên!");
+                window.location.href = 'trangchu.php';
+            }
+        } else {
+            errorDiv.textContent = result.message;
             errorDiv.classList.remove('hidden');
         }
-
     } catch (error) {
-        errorDiv.textContent = "Không kết nối được server (API 8000)";
+        errorDiv.textContent = 'Lỗi kết nối API Gateway (Port 8000).';
         errorDiv.classList.remove('hidden');
     }
-});
+  });
 </script>
 </body>
 </html>

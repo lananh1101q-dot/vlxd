@@ -8,7 +8,7 @@
 <script>
     localStorage.removeItem('token');
     localStorage.removeItem('user');
-    window.location.href = '/dangnhap';
+    window.location.href = 'dangnhap.php';
 </script>
 </body>
 </html>

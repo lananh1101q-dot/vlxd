@@ -52,6 +52,14 @@ insertData('vlxd_warehouse', [
     ],
     "INSERT IGNORE INTO tonkho_sp (Makho, Masp, Soluongton) VALUES (?, ?, ?)" => [
         ['KHO01', 'SP01', 1000], ['KHO01', 'SP02', 200]
+    ],
+    // ĐÃ CẬP NHẬT: Thêm cột Trangthai vào câu lệnh INSERT và dữ liệu mẫu
+    "INSERT IGNORE INTO phieudieuchuyen (Madieuchuyen, Khoxuat, Khonhap, Ngaydieuchuyen, Ghichu, Trangthai) VALUES (?, ?, ?, ?, ?, ?)" => [
+        ['DC01', 'KHO01', 'KHO02', date('Y-m-d'), 'Chuyen gach mau', 'da_thuc_hien'],
+        ['DC02', 'KHO01', 'KHO02', date('Y-m-d'), 'Chuyen sat can gap', 'dang_xu_ly']
+    ],
+    "INSERT IGNORE INTO chitiet_phieudieuchuyen (Madieuchuyen, Masp, Soluong) VALUES (?, ?, ?)" => [
+        ['DC01', 'SP01', 100], ['DC02', 'SP02', 10]
     ]
 ]);
 

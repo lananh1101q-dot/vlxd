@@ -13,14 +13,12 @@ $roleName = getRoleName(getCurrentRole());
     </div>
     
     <ul class="nav flex-column pb-5">
-        <!-- Dashboard -->
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo $currentPage === 'trangchu' ? 'active' : ''; ?>" href="trangchu">
                 <i class="fas fa-chart-line me-2"></i> Trang Chủ
             </a>
         </li>
         
-        <!-- Hàng hóa & Đối tác -->
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Danh mục & Đối tác</li>
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo in_array($currentPage, ['sanpham', 'dmsp', 'nguyenvatlieu', 'nhacungcap']) ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuSP">
@@ -34,7 +32,6 @@ $roleName = getRoleName(getCurrentRole());
             </div>
         </li>
 
-        <!-- NHẬP KHO -->
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Hoạt động kho</li>
         <li id="menu-warehouse" style="display: block;">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'phieu-nhap') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuNhap">
@@ -48,9 +45,16 @@ $roleName = getRoleName(getCurrentRole());
             <a class="nav-link rounded-pill mx-2 mb-1" href="danh_sach_phieu_xuat.php">
                 <i class="fas fa-file-export me-2"></i> Xuất kho
             </a>
+
+            <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'phieu-dieuchuyen') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuDieuChuyen">
+                <i class="fas fa-exchange-alt me-2"></i> Điều chuyển kho <i class="fas fa-chevron-down float-end mt-1 small"></i>
+            </a>
+            <div class="collapse <?php echo strpos($currentPage, 'phieu-dieuchuyen') !== false ? 'show' : ''; ?>" id="menuDieuChuyen" style="margin-left: 20px;">
+                <a class="nav-link small py-1" href="phieu-dieuchuyen-danh-sach"><i class="fas fa-list me-2 opacity-50"></i> Danh sách phiếu</a>
+                <a class="nav-link small py-1" href="phieu-dieuchuyen-tao"><i class="fas fa-plus-circle me-2 opacity-50"></i> Tạo phiếu điều chuyển</a>
+            </div>
         </li>
 
-        <!-- SẢN XUẤT -->
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Sản xuất</li>
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'lenh-san-xuat') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuSanXuat">
@@ -63,7 +67,6 @@ $roleName = getRoleName(getCurrentRole());
             </div>
         </li>
 
-        <!-- TỒN KHO & BÁO CÁO -->
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold" style="font-size: 0.65rem; letter-spacing: 1px;">Báo cáo & Thống kê</li>
         <li class="nav-item">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'tonkho') !== false ? 'active' : ''; ?>" href="#" data-bs-toggle="collapse" data-bs-target="#menuBaoCao">
@@ -87,7 +90,6 @@ $roleName = getRoleName(getCurrentRole());
             </div>
         </li>
 
-        <!-- Footer actions -->
         <li class="nav-item mt-auto"><hr class="mx-3 bg-white opacity-10"></li>
         <li class="nav-item px-2">
             <a class="nav-link text-danger fw-bold rounded-pill" href="logout.php" id="btn-logout">

@@ -1,3 +1,4 @@
+-- warehouse_db.sql
 CREATE DATABASE IF NOT EXISTS vlxd_warehouse;
 USE vlxd_warehouse;
 
@@ -43,12 +44,14 @@ CREATE TABLE Chitiet_Phieunhap (
     FOREIGN KEY (Manhaphang) REFERENCES Phieunhap(Manhaphang) ON UPDATE CASCADE ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
+-- ĐÃ CẬP NHẬT: Thêm cột Trangthai vào bảng Phieudieuchuyen
 CREATE TABLE Phieudieuchuyen (
     Madieuchuyen VARCHAR(50) PRIMARY KEY,
     Khoxuat VARCHAR(50) NOT NULL,
     Khonhap VARCHAR(50) NOT NULL,
     Ngaydieuchuyen DATE NOT NULL,
     Ghichu TEXT,
+    Trangthai VARCHAR(50) DEFAULT 'dang_xu_ly',
     FOREIGN KEY (Khoxuat) REFERENCES Kho(Makho) ON UPDATE CASCADE ON DELETE RESTRICT,
     FOREIGN KEY (Khonhap) REFERENCES Kho(Makho) ON UPDATE CASCADE ON DELETE RESTRICT
 ) ENGINE=InnoDB;

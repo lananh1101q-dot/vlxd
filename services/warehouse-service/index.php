@@ -44,6 +44,8 @@ try {
         }
     }
 
+    
+
     // ===== INVENTORY (Tồn kho) =====
     else if ($resource === 'inventory') {
         if ($method === 'GET') {
@@ -367,9 +369,11 @@ try {
 
     // ===== TRANSFERS (Phiếu điều chuyển) =====
     else if ($resource === 'transfers') {
+        
+        // 1. LẤY DANH SÁCH (GET /transfers)
         if ($method === 'GET' && !$id) {
             $stmt = $pdo->query("SELECT p.Madieuchuyen, kx.Tenkho as TenKhoxuat, kn.Tenkho as TenKhonhap, 
-                p.Ngaydieuchuyen, p.Ghichu,
+                p.Ngaydieuchuyen, p.Ghichu, p.Trangthai,
                 (SELECT COUNT(*) FROM Chitiet_Phieudieuchuyen WHERE Madieuchuyen = p.Madieuchuyen) as SoMatHang
                 FROM Phieudieuchuyen p
                 JOIN Kho kx ON p.Khoxuat = kx.Makho
@@ -377,6 +381,8 @@ try {
                 ORDER BY p.Ngaydieuchuyen DESC");
             jsonResponse(true, 'Transfers retrieved', ['transfers' => $stmt->fetchAll()]);
         }
+        
+        // 2. XEM CHI TIẾT (GET /transfers/:id)
         else if ($method === 'GET' && $id) {
             $stmt = $pdo->prepare("SELECT p.*, kx.Tenkho as TenKhoxuat, kn.Tenkho as TenKhonhap 
                 FROM Phieudieuchuyen p
@@ -392,52 +398,9 @@ try {
             $master['details'] = $stmtD->fetchAll();
             jsonResponse(true, 'Transfer details retrieved', ['transfer' => $master]);
         }
-        else if ($method === 'POST') {
-            $body    = getBody();
-            $madc    = $body['Madieuchuyen'] ?? ('DC' . time());
-            $khoxuat = $body['Khoxuat'];
-            $khonhap = $body['Khonhap'];
-            $ngay    = $body['Ngaydieuchuyen'] ?? date('Y-m-d');
-            $ghichu  = $body['Ghichu'] ?? '';
-            $details = $body['details'] ?? [];
-
-            if ($khoxuat === $khonhap) jsonResponse(false, 'Kho xuất và nhập không được trùng nhau', null, 400);
-
-            $pdo->beginTransaction();
-            try {
-                $pdo->prepare("INSERT INTO Phieudieuchuyen (Madieuchuyen, Khoxuat, Khonhap, Ngaydieuchuyen, Ghichu) VALUES (?, ?, ?, ?, ?)")
-                    ->execute([$madc, $khoxuat, $khonhap, $ngay, $ghichu]);
-
-                foreach ($details as $d) {
-                    $masp = $d['Masp'];
-                    $sl   = $d['Soluong'];
-                    $chk  = $pdo->prepare("SELECT Soluongton FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
-                    $chk->execute([$khoxuat, $masp]);
-                    $ton = $chk->fetchColumn();
-                    if ($ton === false || $ton < $sl) throw new Exception("Sản phẩm $masp không đủ tồn trong kho xuất.");
-                    $pdo->prepare("INSERT INTO Chitiet_Phieudieuchuyen (Madieuchuyen, Masp, Soluong) VALUES (?, ?, ?)")->execute([$madc, $masp, $sl]);
-                    $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton - ? WHERE Makho = ? AND Masp = ?")->execute([$sl, $khoxuat, $masp]);
-                    $stmtChk = $pdo->prepare("SELECT 1 FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
-                    $stmtChk->execute([$khonhap, $masp]);
-                    if ($stmtChk->fetchColumn()) {
-                        $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton + ? WHERE Makho = ? AND Masp = ?")->execute([$sl, $khonhap, $masp]);
-                    } else {
-                        $pdo->prepare("INSERT INTO Tonkho_sp (Makho, Masp, Soluongton) VALUES (?, ?, ?)")->execute([$khonhap, $masp, $sl]);
-                    }
-                }
-                $pdo->commit();
-                jsonResponse(true, 'Transfer completed successfully', ['id' => $madc], 201);
-            } catch (Exception $e) {
-                $pdo->rollBack();
-                jsonResponse(false, 'Lỗi: ' . $e->getMessage(), null, 400);
-            }
-        }
-        else if ($method === 'DELETE' && $id) {
-            $pdo->prepare("DELETE FROM Chitiet_Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$id]);
-            $pdo->prepare("DELETE FROM Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$id]);
-            jsonResponse(true, 'Transfer deleted');
-        }
-        // POST /transfers/:id/execute — thực hiện điều chuyển (cập nhật tồn kho)
+        
+        // 3. THỰC HIỆN PHIẾU: POST /transfers/:id/execute
+        // (Phải đặt route này lên TRƯỚC route tạo phiếu)
         else if ($method === 'POST' && $id && $subAction === 'execute') {
             $stmt = $pdo->prepare("SELECT p.*, kx.Tenkho as TenKhoXuat, kn.Tenkho as TenKhoNhap
                 FROM Phieudieuchuyen p
@@ -462,8 +425,12 @@ try {
                     $chk->execute([$phieu['Khoxuat'], $masp]);
                     $ton = $chk->fetchColumn();
                     if ($ton === false || $ton < $sl) throw new Exception("Sản phẩm $masp không đủ tồn trong kho xuất (cần $sl, có ".($ton?:0).")");
+                    
+                    // Trừ kho xuất
                     $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton - ? WHERE Makho = ? AND Masp = ?")
                         ->execute([$sl, $phieu['Khoxuat'], $masp]);
+                        
+                    // Cộng kho nhập
                     $chkNhap = $pdo->prepare("SELECT 1 FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
                     $chkNhap->execute([$phieu['Khonhap'], $masp]);
                     if ($chkNhap->fetchColumn()) {
@@ -483,6 +450,52 @@ try {
                 $pdo->rollBack();
                 jsonResponse(false, 'Lỗi: ' . $e->getMessage(), null, 400);
             }
+        }
+        
+        // 4. TẠO MỚI PHIẾU: POST /transfers
+        // Đã thêm điều kiện !$id để không bị bắt nhầm với route execute ở trên
+        else if ($method === 'POST' && !$id) {
+            $body    = getBody();
+            $madc    = $body['Madieuchuyen'] ?? ('DC' . time());
+            $khoxuat = $body['Khoxuat'];
+            $khonhap = $body['Khonhap'];
+            $ngay    = $body['Ngaydieuchuyen'] ?? date('Y-m-d');
+            $ghichu  = $body['Ghichu'] ?? '';
+            $details = $body['details'] ?? [];
+
+            if ($khoxuat === $khonhap) jsonResponse(false, 'Kho xuất và nhập không được trùng nhau', null, 400);
+
+            $pdo->beginTransaction();
+            try {
+                // Tạo phiếu với trạng thái mặc định: dang_xu_ly
+                $pdo->prepare("INSERT INTO Phieudieuchuyen (Madieuchuyen, Khoxuat, Khonhap, Ngaydieuchuyen, Ghichu, Trangthai) VALUES (?, ?, ?, ?, ?, 'dang_xu_ly')")
+                    ->execute([$madc, $khoxuat, $khonhap, $ngay, $ghichu]);
+
+                foreach ($details as $d) {
+                    $masp = $d['Masp'];
+                    $sl   = $d['Soluong'];
+                    
+                    // CHỈ KIỂM TRA TỒN KHO CHỨ KHÔNG TRỪ NGAY (Sẽ trừ ở bước Thực hiện)
+                    $chk  = $pdo->prepare("SELECT Soluongton FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
+                    $chk->execute([$khoxuat, $masp]);
+                    $ton = $chk->fetchColumn();
+                    if ($ton === false || $ton < $sl) throw new Exception("Sản phẩm $masp không đủ tồn trong kho xuất (hiện có: ".($ton?:0).").");
+                    
+                    $pdo->prepare("INSERT INTO Chitiet_Phieudieuchuyen (Madieuchuyen, Masp, Soluong) VALUES (?, ?, ?)")->execute([$madc, $masp, $sl]);
+                }
+                $pdo->commit();
+                jsonResponse(true, 'Tạo phiếu điều chuyển thành công', ['id' => $madc], 201);
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                jsonResponse(false, 'Lỗi tạo phiếu: ' . $e->getMessage(), null, 400);
+            }
+        }
+        
+        // 5. XÓA PHIẾU: DELETE /transfers/:id
+        else if ($method === 'DELETE' && $id) {
+            $pdo->prepare("DELETE FROM Chitiet_Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$id]);
+            $pdo->prepare("DELETE FROM Phieudieuchuyen WHERE Madieuchuyen = ?")->execute([$id]);
+            jsonResponse(true, 'Transfer deleted');
         }
     }
 

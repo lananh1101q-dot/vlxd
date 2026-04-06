@@ -53,6 +53,10 @@ $views = [
     'lenh-san-xuat-danh-sach' => ['file' => 'lenh_san_xuat_danh_sach.php', 'title' => 'Danh sách Lệnh sản xuất - VLXD'],
     'lenh-san-xuat-tao'    => ['file' => 'lenh_san_xuat_tao.php',         'title' => 'Tạo Lệnh sản xuất - VLXD'],
     'lenh-san-xuat-sua'    => ['file' => 'lenh_san_xuat_sua.php',         'title' => 'Sửa Lệnh sản xuất - VLXD'],
+    'phieu-dieuchuyen-danh-sach' => ['file' => 'danh_sach_phieu_dieuchuyen.php', 'title' => 'Danh sách Phiếu điều chuyển - VLXD'],
+    'phieu-dieuchuyen-tao' => ['file' => 'phieu_dieuchuyen.php', 'title' => 'Tạo Phiếu điều chuyển - VLXD'],
+    'phieu-dieuchuyen-thuc-hien' => ['file' => 'thuc_hien_dieuchuyen.php', 'title' => 'Thực hiện điều chuyển - VLXD'],
+    'phieu-dieuchuyen-chi-tiet' => ['file' => 'chi_tiet_dieuchuyen.php', 'title' => 'Chi tiết phiếu điều chuyển - VLXD'],
 ];
 
 if ($page === 'dangnhap') {
