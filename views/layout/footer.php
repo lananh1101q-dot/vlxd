@@ -3,34 +3,34 @@
 <script>
     document.addEventListener("DOMContentLoaded", function () {
 
-    function toggleMenu(btnId, subId) {
-        const btn = document.getElementById(btnId);
-        const sub = document.getElementById(subId);
+        function toggleMenu(btnId, subId) {
+            const btn = document.getElementById(btnId);
+            const sub = document.getElementById(subId);
 
-        if (btn && sub) {
-            btn.addEventListener("click", function () {
-                sub.classList.toggle("d-none");
-            });
+            if (btn && sub) {
+                btn.addEventListener("click", function () {
+                    sub.classList.toggle("d-none");
+                });
+            }
         }
-    }
 
-    // GỌI CHO TẤT CẢ MENU
-    toggleMenu("btnSanPham", "submenuSanPham");
-    toggleMenu("btnPhieuNhap", "submenuPhieuNhap");
-    toggleMenu("btnPhieuXuat", "submenuPhieuXuat");
-     toggleMenu("btnPhieudc", "submenuPhieudc");
-    toggleMenu("btnSanXuat", "submenuSanXuat");
-    toggleMenu("btnBaoCao", "submenuBaoCao");
-    toggleMenu("btnKhachHang", "submenuKhachHang");
+        // GỌI CHO TẤT CẢ MENU
+        toggleMenu("btnSanPham", "submenuSanPham");
+        toggleMenu("btnPhieuNhap", "submenuPhieuNhap");
+        toggleMenu("btnPhieuXuat", "submenuPhieuXuat");
+        toggleMenu("btnPhieudc", "submenuPhieudc");
+        toggleMenu("btnSanXuat", "submenuSanXuat");
+        toggleMenu("btnBaoCao", "submenuBaoCao");
+        toggleMenu("btnKhachHang", "submenuKhachHang");
 
-});
+    });
     // System-wide helpers 
     const getHeaders = () => {
         const token = localStorage.getItem('token');
         if (!token) return null;
         return { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' };
     };
-    
+
     // Base API URL
     const API = 'http://localhost:8000/api/v1';
 
@@ -38,26 +38,26 @@
     document.addEventListener('DOMContentLoaded', () => {
         const userStr = localStorage.getItem('user');
         const token = localStorage.getItem('token');
-        
+
         if (!token) {
-             window.location.href = '/dangnhap';
-             return;
+            window.location.href = '/dangnhap';
+            return;
         }
 
         if (userStr) {
             try {
                 const user = JSON.parse(userStr);
                 const role = (user.Vaitro || 'guest').toLowerCase();
-                
+
                 // Update Name & Role
                 document.getElementById('user-fullname').textContent = user.Fullname || user.username || user.Tendangnhap;
                 document.getElementById('user-role').innerHTML = `<i class="fas fa-user-shield me-1"></i> ${user.Vaitro || 'Guest'}`;
-                
+
                 // Show/Hide warehouse menu based on role
-                if (role === 'admin' || role === 'staff') {
-                    document.getElementById('menu-warehouse').style.display = 'block';
+                if (role === 'staff') {
+                    document.getElementById('menu-warehouse').style.display = 'none';
                 }
-            } catch(e) { console.error('Error parsing user data'); }
+            } catch (e) { console.error('Error parsing user data'); }
         }
     });
 
@@ -87,4 +87,5 @@
 </script>
 
 </body>
+
 </html>

@@ -301,6 +301,64 @@ try {
             $receipt['details'] = $stmtD->fetchAll();
             jsonResponse(true, 'Export receipt details', ['receipt' => $receipt]);
         }
+        else if ($method === 'PUT' && $id) {
+            $body = getBody();
+            $makh    = $body['Makh'];
+            $makho   = $body['Makho'];
+            $ngay    = $body['Ngayxuat'];
+            $ghichu  = $body['Ghichu'] ?? '';
+            $details = $body['details'] ?? [];
+
+            if (empty($details)) jsonResponse(false, 'Vui lòng thêm chi tiết phiếu xuất', null, 400);
+
+            $pdo->beginTransaction();
+            try {
+                // 1. Lấy kho cũ và chi tiết cũ để hoàn tồn kho
+                $oldPhieu = $pdo->prepare("SELECT Makho FROM Phieuxuat WHERE Maxuathang = ?");
+                $oldPhieu->execute([$id]);
+                $oldMakho = $oldPhieu->fetchColumn();
+
+                $oldDetails = $pdo->prepare("SELECT Masp, Soluong FROM Chitiet_Phieuxuat WHERE Maxuathang = ?");
+                $oldDetails->execute([$id]);
+                foreach ($oldDetails->fetchAll() as $row) {
+                    $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton + ? WHERE Makho = ? AND Masp = ?")
+                        ->execute([$row['Soluong'], $oldMakho, $row['Masp']]);
+                }
+
+                // 2. Kiểm tra tồn kho mới trước khi thực hiện
+                foreach ($details as $d) {
+                    $chk = $pdo->prepare("SELECT Soluongton FROM Tonkho_sp WHERE Makho = ? AND Masp = ?");
+                    $chk->execute([$makho, $d['Masp']]);
+                    $ton = $chk->fetchColumn();
+                    if ($ton === false || $ton < $d['Soluong']) {
+                        throw new Exception("Sản phẩm {$d['Masp']} không đủ tồn kho tại kho mới (còn ".($ton?:0).")");
+                    }
+                }
+
+                // 3. Xóa chi tiết cũ và cập nhật phiếu chính
+                $pdo->prepare("DELETE FROM Chitiet_Phieuxuat WHERE Maxuathang = ?")->execute([$id]);
+                
+                $tongTien = 0;
+                foreach ($details as $d) $tongTien += ($d['Soluong'] ?? 0) * ($d['Dongiaxuat'] ?? 0);
+                
+                $stmt = $pdo->prepare("UPDATE Phieuxuat SET Makh = ?, Makho = ?, Ngayxuat = ?, Tongtienxuat = ?, Ghichu = ? WHERE Maxuathang = ?");
+                $stmt->execute([$makh, $makho, $ngay, $tongTien, $ghichu, $id]);
+
+                // 4. Thêm chi tiết mới và trừ tồn kho
+                $stmtDet = $pdo->prepare("INSERT INTO Chitiet_Phieuxuat (Maxuathang, Masp, Soluong, Dongiaxuat) VALUES (?, ?, ?, ?)");
+                $stmtTru = $pdo->prepare("UPDATE Tonkho_sp SET Soluongton = Soluongton - ? WHERE Makho = ? AND Masp = ?");
+                foreach ($details as $d) {
+                    $stmtDet->execute([$id, $d['Masp'], $d['Soluong'], $d['Dongiaxuat'] ?? 0]);
+                    $stmtTru->execute([$d['Soluong'], $makho, $d['Masp']]);
+                }
+
+                $pdo->commit();
+                jsonResponse(true, 'Export receipt updated');
+            } catch (Exception $e) {
+                $pdo->rollBack();
+                jsonResponse(false, 'Lỗi cập nhật: ' . $e->getMessage(), null, 400);
+            }
+        }
         else if ($method === 'POST') {
             $body    = getBody();
             $mapx    = $body['Maxuathang'] ?? ('PX' . time());
