@@ -21,24 +21,22 @@ class Customer extends BaseModel {
     }
 
     public function create($data) {
-        $stmt = $this->pdo->prepare("INSERT INTO {$this->table} (Makh, Tenkh, Sdtkh, Diachikh, Email, Maloaikh) VALUES (?, ?, ?, ?, ?, ?)");
+        $stmt = $this->pdo->prepare("INSERT INTO {$this->table} (Makh, Tenkh, Sdtkh, Diachikh, Maloaikh) VALUES (?, ?, ?, ?, ?)");
         return $stmt->execute([
             $data['Makh'],
             $data['Tenkh'],
             $data['Sdtkh'] ?? '',
             $data['Diachikh'] ?? '',
-            $data['Email'] ?? '',
             empty($data['Maloaikh']) ? null : $data['Maloaikh']
         ]);
     }
 
     public function update($id, $data) {
-        $stmt = $this->pdo->prepare("UPDATE {$this->table} SET Tenkh=?, Sdtkh=?, Diachikh=?, Email=?, Maloaikh=? WHERE {$this->primaryKey}=?");
+        $stmt = $this->pdo->prepare("UPDATE {$this->table} SET Tenkh=?, Sdtkh=?, Diachikh=?, Maloaikh=? WHERE {$this->primaryKey}=?");
         return $stmt->execute([
             $data['Tenkh'],
             $data['Sdtkh'] ?? '',
             $data['Diachikh'] ?? '',
-            $data['Email'] ?? '',
             empty($data['Maloaikh']) ? null : $data['Maloaikh'],
             $id
         ]);
