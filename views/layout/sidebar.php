@@ -84,7 +84,7 @@ $roleName = getRoleName(getCurrentRole());
 
         <li class="nav-item mt-3 px-3 small text-uppercase opacity-50 fw-bold"
             style="font-size: 0.65rem; letter-spacing: 1px;">Sản xuất</li>
-        <li class="nav-item">
+        <li id="menu-sanxuat" style="display: block;">
             <a class="nav-link rounded-pill mx-2 mb-1 <?php echo strpos($currentPage, 'lenh-san-xuat') !== false ? 'active' : ''; ?>"
                 href="#" data-bs-toggle="collapse" data-bs-target="#menuSanXuat">
                 <i class="fas fa-cogs me-2"></i> Sản xuất <i class="fas fa-chevron-down float-end mt-1 small"></i>

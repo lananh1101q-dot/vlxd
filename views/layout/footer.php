@@ -56,6 +56,8 @@
                 // Show/Hide warehouse menu based on role
                 if (role === 'staff') {
                     document.getElementById('menu-warehouse').style.display = 'none';
+                } if (role === 'kho') {
+                    document.getElementById('menu-sanxuat').style.display = 'none';
                 }
             } catch (e) { console.error('Error parsing user data'); }
         }
