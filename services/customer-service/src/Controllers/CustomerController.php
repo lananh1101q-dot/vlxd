@@ -78,11 +78,20 @@ class CustomerController extends BaseController {
         if (empty($body['Makh']) || empty($body['Tenkh'])) {
             $this->jsonResponse(false, 'Makh and Tenkh are required', null, 400);
         }
-        $model = new Customer();
-        if ($model->create($body)) {
-            $this->jsonResponse(true, 'Customer created', ['id' => $body['Makh']], 201);
-        } else {
-            $this->jsonResponse(false, 'Failed to create customer', null, 500);
+        
+        try {
+            $model = new Customer();
+            if ($model->create($body)) {
+                $this->jsonResponse(true, 'Customer created', ['id' => $body['Makh']], 201);
+            } else {
+                $this->jsonResponse(false, 'Failed to create customer', null, 500);
+            }
+        } catch (\PDOException $e) {
+            if ($e->getCode() == 23000) {
+                $this->jsonResponse(false, "Mã khách hàng '{$body['Makh']}' đã tồn tại.", null, 409);
+            } else {
+                $this->jsonResponse(false, 'Lỗi cơ sở dữ liệu: ' . $e->getMessage(), null, 500);
+            }
         }
     }
 
