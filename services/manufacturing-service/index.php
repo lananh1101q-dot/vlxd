@@ -39,6 +39,39 @@ try {
             jsonResponse(true, 'Production orders retrieved', ['orders' => $stmt->fetchAll()]);
         }
         else if ($method === 'GET' && $id) {
+            // Check if asking for details sub-resource
+            if ($action === 'details') {
+                $stmt = $pdo->prepare("SELECT ls.*, sp.Tensp FROM Lenhsanxuat ls
+                    LEFT JOIN vlxd_product.Sanpham sp ON ls.Masp = sp.Masp
+                    WHERE ls.Malenh = ?");
+                $stmt->execute([$id]);
+                $order = $stmt->fetch();
+                if (!$order) jsonResponse(false, 'Order not found', null, 404);
+
+                // Lấy chi tiết tiêu hao NVL
+                $stmtNvl = $pdo->prepare("SELECT ctx.Manvl, ctx.Soluong, nvl.Tennvl, nvl.Dvt 
+                    FROM Chitiet_XuatNVL_Sanxuat ctx
+                    JOIN vlxd_product.Nguyenvatlieu nvl ON ctx.Manvl = nvl.Manvl
+                    WHERE ctx.Malenh = ?");
+                $stmtNvl->execute([$id]);
+                $consumed = $stmtNvl->fetchAll();
+
+                // Lấy chi tiết nhập kho thành phẩm
+                $stmtSp = $pdo->prepare("SELECT ctn.Masp, ctn.Soluong, ctn.Makho, k.Tenkho, sp.Tensp, sp.Dvt
+                    FROM Chitiet_Nhapsanpham_Sanxuat ctn
+                    JOIN vlxd_product.Sanpham sp ON ctn.Masp = sp.Masp
+                    JOIN vlxd_warehouse.Kho k ON ctn.Makho = k.Makho
+                    WHERE ctn.Malenh = ?");
+                $stmtSp->execute([$id]);
+                $produced = $stmtSp->fetchAll();
+
+                jsonResponse(true, 'Order details retrieved', [
+                    'order' => $order,
+                    'consumed' => $consumed,
+                    'produced' => $produced
+                ]);
+            }
+
             $stmt = $pdo->prepare("SELECT ls.*, sp.Tensp FROM Lenhsanxuat ls
                 LEFT JOIN vlxd_product.Sanpham sp ON ls.Masp = sp.Masp
                 WHERE ls.Malenh = ?");
@@ -50,12 +83,45 @@ try {
         else if ($method === 'POST') {
             $body = getBody();
             $malenh = $body['Malenh'] ?? ('LSX' . time());
+            $masp   = $body['Masp'];
+            $slsx   = (float)$body['Soluongsanxuat'];
+
+            // 1. Kiểm tra tồn kho NVL dựa trên công thức
+            $stmtRecipe = $pdo->prepare("SELECT c.Manvl, c.Soluong as DinhMuc, nvl.Tennvl, 
+                                        IFNULL(SUM(tk.Soluongton), 0) as TonKho
+                                        FROM vlxd_product.Congthucsanpham c
+                                        JOIN vlxd_product.Nguyenvatlieu nvl ON c.Manvl = nvl.Manvl
+                                        LEFT JOIN vlxd_warehouse.tonkho_nvl tk ON c.Manvl = tk.Manvl
+                                        WHERE c.Masp = ?
+                                        GROUP BY c.Manvl");
+            $stmtRecipe->execute([$masp]);
+            $recipeItems = $stmtRecipe->fetchAll();
+
+            $missingItems = [];
+            foreach ($recipeItems as $item) {
+                $required = $item['DinhMuc'] * $slsx;
+                if ($item['TonKho'] < $required) {
+                    $missingItems[] = [
+                        'Manvl' => $item['Manvl'],
+                        'Tennvl' => $item['Tennvl'],
+                        'Required' => $required,
+                        'Available' => (float)$item['TonKho'],
+                        'Missing' => $required - $item['TonKho']
+                    ];
+                }
+            }
+
+            if (!empty($missingItems)) {
+                jsonResponse(false, 'Không đủ nguyên vật liệu để sản xuất', ['missing' => $missingItems], 400);
+            }
+
+            // 2. Nếu đủ thì mới tiến hành tạo lệnh
             $stmt = $pdo->prepare("INSERT INTO Lenhsanxuat (Malenh, Masp, Ngaysanxuat, Soluongsanxuat, Trangthai, Ngaybatdau, Ngayketthuc, Ghichu) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
             $stmt->execute([
                 $malenh,
-                $body['Masp'],
+                $masp,
                 $body['Ngaysanxuat'] ?? date('Y-m-d'),
-                $body['Soluongsanxuat'],
+                $slsx,
                 $body['Trangthai'] ?? 'cho_xu_ly',
                 $body['Ngaybatdau'] ?? null,
                 $body['Ngayketthuc'] ?? null,

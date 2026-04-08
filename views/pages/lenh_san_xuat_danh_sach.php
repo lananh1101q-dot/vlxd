@@ -122,6 +122,8 @@ async function load() {
                 <td class="text-center">${statusBadge(r.Trangthai)}</td>
                 <td class="text-center pe-4">
                     <div class="d-flex gap-1 justify-content-center">
+                        <a href="lenh-san-xuat-chi-tiet?id=${r.Malenh}" class="btn btn-sm btn-outline-info" title="Xem chi tiết hồ sơ"><i class="fas fa-info-circle"></i></a>
+                        
                         ${r.Trangthai !== 'hoan_thanh' ? `
                             <a href="lenh-san-xuat-sua?id=${r.Malenh}" class="btn btn-sm btn-outline-primary" title="Chỉnh sửa"><i class="fas fa-edit"></i></a>
                         ` : ''}

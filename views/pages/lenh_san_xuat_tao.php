@@ -191,10 +191,22 @@ async function submitOrder() {
             body: JSON.stringify(payload)
         });
         const data = await res.json();
+        
         if (data.success) {
             alert('Đã tạo lệnh sản xuất thành công!');
             window.location.href = 'lenh-san-xuat-danh-sach';
-        } else alert('Lỗi: ' + data.message);
+        } else {
+            if (data.data && data.data.missing) {
+                let msg = 'KHÔNG ĐỦ NGUYÊN VẬT LIỆU:\n\n';
+                data.data.missing.forEach(m => {
+                    msg += `- ${m.Tennvl}: Cần ${m.Required}, Hiện có ${m.Available} (Thiếu ${m.Missing})\n`;
+                });
+                msg += '\nVui lòng nhập hàng trước khi tạo lệnh.';
+                alert(msg);
+            } else {
+                alert('Lỗi: ' + data.message);
+            }
+        }
     } catch (e) { alert('Lỗi kết nối API'); }
 }
 
