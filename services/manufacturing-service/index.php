@@ -69,20 +69,26 @@ try {
             if (isset($body['Trangthai']) && count($body) === 1) {
                 $stmt = $pdo->prepare("UPDATE Lenhsanxuat SET Trangthai=? WHERE Malenh=?");
                 $stmt->execute([$body['Trangthai'], $id]);
+                jsonResponse(true, 'Production order status updated');
             } else {
+                // Get existing data to merge
+                $stmt = $pdo->prepare("SELECT * FROM Lenhsanxuat WHERE Malenh = ?");
+                $stmt->execute([$id]);
+                $existing = $stmt->fetch();
+                if (!$existing) jsonResponse(false, 'Order not found', null, 404);
+
+                $masp = $body['Masp'] ?? $existing['Masp'];
+                $ngay = $body['Ngaysanxuat'] ?? $existing['Ngaysanxuat'];
+                $sl   = $body['Soluongsanxuat'] ?? $existing['Soluongsanxuat'];
+                $tt   = $body['Trangthai'] ?? $existing['Trangthai'];
+                $nbd  = $body['Ngaybatdau'] ?? $existing['Ngaybatdau'];
+                $nkt  = $body['Ngayketthuc'] ?? $existing['Ngayketthuc'];
+                $gc   = $body['Ghichu'] ?? $existing['Ghichu'];
+
                 $stmt = $pdo->prepare("UPDATE Lenhsanxuat SET Masp=?, Ngaysanxuat=?, Soluongsanxuat=?, Trangthai=?, Ngaybatdau=?, Ngayketthuc=?, Ghichu=? WHERE Malenh=?");
-                $stmt->execute([
-                    $body['Masp'],
-                    $body['Ngaysanxuat'],
-                    $body['Soluongsanxuat'],
-                    $body['Trangthai'] ?? 'cho_xu_ly',
-                    $body['Ngaybatdau'] ?? null,
-                    $body['Ngayketthuc'] ?? null,
-                    $body['Ghichu'] ?? null,
-                    $id
-                ]);
+                $stmt->execute([$masp, $ngay, $sl, $tt, $nbd, $nkt, $gc, $id]);
+                jsonResponse(true, 'Production order updated');
             }
-            jsonResponse(true, 'Production order updated');
         }
         else if ($method === 'DELETE' && $id) {
             $pdo->prepare("DELETE FROM Lenhsanxuat WHERE Malenh=?")->execute([$id]);
@@ -101,28 +107,52 @@ try {
         $stmt->execute([$malenh]);
         $order = $stmt->fetch();
         if (!$order) jsonResponse(false, 'Lệnh sản xuất không tìm thấy', null, 404);
+        if ($order['Trangthai'] === 'hoan_thanh') jsonResponse(false, 'Lệnh này đã hoàn thành trước đó', null, 400);
 
         $pdo->beginTransaction();
         try {
-            // Cập nhật trạng thái
+            // 1. Cập nhật trạng thái lệnh
             $pdo->prepare("UPDATE Lenhsanxuat SET Trangthai='hoan_thanh', Ngayketthuc=? WHERE Malenh=?")
                 ->execute([date('Y-m-d'), $malenh]);
 
-            // Nhập thành phẩm vào tồn kho
             $masp = $order['Masp'];
-            $sl   = $order['Soluongsanxuat'];
+            $slsx = $order['Soluongsanxuat'];
+
+            // 2. Ghi nhận tiêu hao nguyên vật liệu dựa trên công thức (BOM)
+            $stmtRecipe = $pdo->prepare("SELECT Manvl, Soluong FROM vlxd_product.Congthucsanpham WHERE Masp = ?");
+            $stmtRecipe->execute([$masp]);
+            $recipes = $stmtRecipe->fetchAll();
+
+            foreach ($recipes as $item) {
+                $requiredQty = $item['Soluong'] * $slsx;
+                
+                // Lưu vào chi tiết tiêu hao
+                $pdo->prepare("INSERT INTO Chitiet_XuatNVL_Sanxuat (Malenh, Manvl, Soluong) VALUES (?, ?, ?)")
+                    ->execute([$malenh, $item['Manvl'], $requiredQty]);
+                
+                // TỰ ĐỘNG TRỪ TỒN KHO NVL (Theo yêu cầu user)
+                // Giả định NVL được trừ từ kho mặc định hoặc kho được chọn (ở đây tối giản trừ trong bảng tonkho_nvl)
+                $pdo->prepare("UPDATE vlxd_warehouse.tonkho_nvl SET Soluongton = Soluongton - ? WHERE Manvl = ?")
+                    ->execute([$requiredQty, $item['Manvl']]);
+            }
+
+            // 3. Ghi nhận nhập thành phẩm
+            $pdo->prepare("INSERT INTO Chitiet_Nhapsanpham_Sanxuat (Malenh, Makho, Masp, Soluong) VALUES (?, ?, ?, ?)")
+                ->execute([$malenh, $makho, $masp, $slsx]);
+
+            // 4. Nhập thành phẩm vào tồn kho sản phẩm
             $chk  = $pdo->prepare("SELECT 1 FROM vlxd_warehouse.tonkho_sp WHERE Makho=? AND Masp=?");
             $chk->execute([$makho, $masp]);
             if ($chk->fetchColumn()) {
                 $pdo->prepare("UPDATE vlxd_warehouse.tonkho_sp SET Soluongton = Soluongton + ? WHERE Makho=? AND Masp=?")
-                    ->execute([$sl, $makho, $masp]);
+                    ->execute([$slsx, $makho, $masp]);
             } else {
                 $pdo->prepare("INSERT INTO vlxd_warehouse.tonkho_sp (Makho, Masp, Soluongton) VALUES (?, ?, ?)")
-                    ->execute([$makho, $masp, $sl]);
+                    ->execute([$makho, $masp, $slsx]);
             }
 
             $pdo->commit();
-            jsonResponse(true, 'Sản xuất hoàn thành và đã nhập kho', ['Malenh' => $malenh]);
+            jsonResponse(true, 'Sản xuất hoàn thành, đã ghi nhận chi tiết tiêu hao và nhập kho', ['Malenh' => $malenh]);
         } catch (Exception $e) {
             $pdo->rollBack();
             jsonResponse(false, 'Lỗi: ' . $e->getMessage(), null, 400);

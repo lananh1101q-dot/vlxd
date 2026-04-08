@@ -71,6 +71,7 @@ $id = $_GET['id'] ?? null;
 
 <script>
 const malenh = '<?= htmlspecialchars($id) ?>';
+let currentMasp = '';
 
 async function loadData() {
     if (!malenh) return alert('Không tìm thấy mã lệnh!');
@@ -82,6 +83,7 @@ async function loadData() {
         if (!data.success) throw new Error(data.message);
         
         const r = data.data;
+        currentMasp = r.Masp;
         document.getElementById('fTensp').value = r.Tensp || r.Masp;
         document.getElementById('fSlsx').value = r.Soluongsanxuat;
         document.getElementById('fNgaysx').value = r.Ngaysanxuat;
@@ -122,6 +124,7 @@ async function updateOrder() {
     if (!headers) return;
     
     const payload = {
+        Masp: currentMasp,
         Soluongsanxuat: parseInt(document.getElementById('fSlsx').value),
         Ngaysanxuat: document.getElementById('fNgaysx').value,
         Ngaybatdau: document.getElementById('fNgaybd').value || null,
